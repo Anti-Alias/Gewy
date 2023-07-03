@@ -1,10 +1,11 @@
+use wgpu::*;
 use winit::window::WindowBuilder;
 use winit::event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode};
 use winit::event_loop::{EventLoop, ControlFlow};
 use winit::dpi::PhysicalSize;
 
 pub struct App {
-    state: State
+    _state: State
 }
 
 /// Stores the application in a window.
@@ -59,8 +60,8 @@ impl App {
         state.update();
         match state.render() {
             Ok(_) => {}
-            Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
-            Err(wgpu::SurfaceError::OutOfMemory) => {
+            Err(SurfaceError::Lost) => state.resize(state.size),
+            Err(SurfaceError::OutOfMemory) => {
                 log::error!("WGPU ran out of memory");
                 *flow = ControlFlow::Exit
             },
@@ -74,12 +75,13 @@ impl App {
 use winit::window::Window;
 
 struct State {
-    surface: wgpu::Surface,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
+    surface: Surface,
+    device: Device,
+    queue: Queue,
+    config: SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     window: Window,
+    render_pipeline: RenderPipeline
 }
 
 impl State {
@@ -88,16 +90,16 @@ impl State {
        
         // WGPU instance
         let size = window.inner_size();
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
+        let instance = Instance::new(InstanceDescriptor {
+            backends: Backends::all(),
             ..Default::default()
         });
         
         // Surface and adapter
         let surface = unsafe { instance.create_surface(&window) }.unwrap();
         let adapter = instance.request_adapter(
-            &wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
+            &RequestAdapterOptions {
+                power_preference: PowerPreference::default(),
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             },
@@ -105,8 +107,8 @@ impl State {
 
         // Device and queue
         let (device, queue) = adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                features: wgpu::Features::empty(),
+            &DeviceDescriptor {
+                features: Features::empty(),
                 label: None,
                 ..Default::default()
             },
@@ -119,8 +121,8 @@ impl State {
             .copied()
             .find(|f| f.is_srgb())            
             .unwrap_or(surface_caps.formats[0]);
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        let config = SurfaceConfiguration {
+            usage: TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
             width: size.width,
             height: size.height,
@@ -130,8 +132,39 @@ impl State {
         };
         surface.configure(&device, &config);
 
+        // Builds render pipeline
+        let render_pipeline = {
+            let shader_source = include_str!("shader.wgsl");
+            let shader_module = device.create_shader_module(ShaderModuleDescriptor {
+                label: Some("Shader"),
+                source: ShaderSource::Wgsl(shader_source.into()),
+            });
+            device.create_render_pipeline(&RenderPipelineDescriptor {
+                label: Some("Render Pipeline"),
+                vertex: VertexState {
+                    module: &shader_module,
+                    entry_point: "vert_main",
+                    buffers: &[],
+                },
+                fragment: Some(FragmentState {
+                    module: &shader_module,
+                    entry_point: "frag_main",
+                    targets: &[Some(ColorTargetState {
+                        format: config.format,
+                        blend: Some(BlendState::REPLACE),
+                        write_mask: ColorWrites::ALL
+                    })]
+                }),
+                primitive: PrimitiveState::default(),
+                multiview: None,
+                layout: None,
+                depth_stencil: None,
+                multisample: MultisampleState::default()
+            })
+        };
+
         // Done
-        Self { window, surface, device, queue, config, size, }
+        Self { window, surface, device, queue, config, size, render_pipeline }
     }
 
     pub fn window(&self) -> &Window { &self.window }
@@ -153,33 +186,35 @@ impl State {
 
     }
 
-    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    fn render(&mut self) -> Result<(), SurfaceError> {
 
         // Gets surface texture
         let output = self.surface.get_current_texture()?;
-        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let view = output.texture.create_view(&TextureViewDescriptor::default());
 
         // Encodes render pass
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        let mut encoder = self.device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("Render Encoder"),
         });
-        let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
             label: Some("Render Pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+            color_attachments: &[Some(RenderPassColorAttachment {
                 view: &view,
                 resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                ops: Operations {
+                    load: LoadOp::Clear(Color {
                         r: 0.1,
                         g: 0.2,
                         b: 0.3,
-                        a: 1.0,
+                        a: 1.0
                     }),
-                    store: true,
+                    store: true
                 },
             })],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment: None
         });
+        render_pass.set_pipeline(&self.render_pipeline);
+        render_pass.draw(0..3, 0..1);
         drop(render_pass);
 
         // Submits encoded draw calls
