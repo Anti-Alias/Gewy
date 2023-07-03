@@ -1,10 +1,14 @@
 mod node;
 mod widget;
 mod pattern;
+mod paint;
+mod app;
 
 pub use node::*;
 pub use widget::*;
 pub use pattern::*;
+pub use paint::*;
+pub use app::*;
 
 
 #[derive(Copy, Clone, PartialEq, Default, Debug)]

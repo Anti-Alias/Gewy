@@ -3,8 +3,11 @@ name = "another-rust-ui"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-derive_more = "0.99.17"
-slotmap = "1.0.6"
+derive_more = "0.99"
+env_logger = "0.10"
+log = "0.4"
+pollster = "0.3.0"
+slotmap = "1.0"
+wgpu = "0.16"
+winit = "0.28"

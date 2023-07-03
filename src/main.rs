@@ -1,3 +1,5 @@
+use another_rust_ui::App;
+
 fn main() {
-    println!("Hello, world!");
+    let app = App::start(512, 512);
 }
