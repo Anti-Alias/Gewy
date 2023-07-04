@@ -3,6 +3,8 @@ use winit::window::WindowBuilder;
 use winit::event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode};
 use winit::event_loop::{EventLoop, ControlFlow};
 use winit::dpi::PhysicalSize;
+use winit::window::Window;
+use crate::{create_pipeline, Mesh, Painter, Color, GpuMesh};
 
 pub struct App {
     _state: State
@@ -71,11 +73,6 @@ impl App {
 }
 
 
-// lib.rs
-use winit::window::Window;
-
-use crate::{ColorVertex, create_color_pipeline};
-
 struct State {
     surface: Surface,
     device: Device,
@@ -83,7 +80,8 @@ struct State {
     config: SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     window: Window,
-    render_pipeline: RenderPipeline
+    render_pipeline: RenderPipeline,
+    mesh: GpuMesh
 }
 
 impl State {
@@ -135,10 +133,19 @@ impl State {
         surface.configure(&device, &config);
 
         // Builds render pipeline
-        let render_pipeline = create_color_pipeline(&device, surface_format);
+        let render_pipeline = create_pipeline(&device, surface_format);
+
+        // Creates a mesh and paints a quad to it
+        let mut mesh = Mesh::new();
+        let mut painter = Painter::new(&mut mesh);
+        let v = 0.1;
+        painter
+            .set_color(Color::BLUE)
+            .quad([[-v, -v], [v, -v], [v, v], [-v, v]]);
+        let mesh = mesh.to_gpu(&device);
 
         // Done
-        Self { window, surface, device, queue, config, size, render_pipeline }
+        Self { window, surface, device, queue, config, size, render_pipeline, mesh }
     }
 
     pub fn window(&self) -> &Window { &self.window }
@@ -176,13 +183,15 @@ impl State {
                 view: &view,
                 resolve_target: None,
                 ops: Operations {
-                    load: LoadOp::Clear(Color::BLACK),
+                    load: LoadOp::Clear(Color::BLACK.into()),
                     store: true
                 },
             })],
             depth_stencil_attachment: None
         });
         render_pass.set_pipeline(&self.render_pipeline);
+        render_pass.set_vertex_buffer(0, self.mesh.vertices.slice(..));
+        render_pass.set_index_buffer(self.mesh.indices.slice(..), IndexFormat::Uint16);
         render_pass.draw(0..3, 0..1);
         drop(render_pass);
 

@@ -1,27 +1,16 @@
 mod node;
 mod widget;
 mod pattern;
+mod color;
 mod paint;
 mod app;
 
 pub use node::*;
 pub use widget::*;
 pub use pattern::*;
+pub use color::*;
 pub use paint::*;
 pub use app::*;
-
-
-#[derive(Copy, Clone, PartialEq, Default, Debug)]
-pub struct Color{
-    pub r: f32,
-    pub g: f32,
-    pub b: f32
-}
-impl Color {
-    pub fn new(r: f32, g: f32, b: f32) -> Self {
-        Self { r, g, b}
-    }
-}
 
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
 pub struct Margin {
