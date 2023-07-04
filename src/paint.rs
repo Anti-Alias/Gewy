@@ -1,5 +1,5 @@
 use wgpu::{*, util::{DeviceExt, BufferInitDescriptor}};
-use crate::Color;
+use crate::{Color, write_to_buffer, View};
 use glam::Vec2;
 use std::mem::size_of;
 use bytemuck::{Pod, Zeroable};
@@ -59,15 +59,23 @@ impl Mesh {
         let vertices = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Mesh Vertices"),
             contents: bytemuck::cast_slice(vertices),
-            usage: BufferUsages::VERTEX,
+            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST
         });
         let indices: &[u16] = &self.indices;
         let indices = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Mesh Indices"),
             contents: bytemuck::cast_slice(indices),
-            usage: BufferUsages::INDEX,
+            usage: BufferUsages::INDEX | BufferUsages::COPY_DST
         });
         GpuMesh { vertices, indices, index_count: self.indices.len() as u32 }
+    }
+
+    pub fn write_to_gpu(&self, device: &Device, queue: &Queue, mesh: &mut GpuMesh) {
+        let vertices: &[u8] = bytemuck::cast_slice(&self.vertices);
+        let indices: &[u8] = bytemuck::cast_slice(&self.indices);
+        write_to_buffer(&mut mesh.vertices, vertices, Some("Mesh Vertices"), device, queue);
+        write_to_buffer(&mut mesh.indices, indices, Some("Mesh Indices"), device, queue);
+        mesh.index_count = self.indices.len() as u32;
     }
 }
 
@@ -143,6 +151,13 @@ pub fn create_pipeline(device: &Device, texture_format: TextureFormat) -> Render
         label: Some("Shader"),
         source: ShaderSource::Wgsl(shader_source.into()),
     });
+    let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+        label: Some("Render Pipeline Layout"),
+        bind_group_layouts: &[
+            &View::create_layout(device)
+        ],
+        push_constant_ranges: &[],
+    });
     device.create_render_pipeline(&RenderPipelineDescriptor {
         label: Some("Render Pipeline"),
         vertex: VertexState {
@@ -161,7 +176,7 @@ pub fn create_pipeline(device: &Device, texture_format: TextureFormat) -> Render
         }),
         primitive: PrimitiveState::default(),
         multiview: None,
-        layout: None,
+        layout: Some(&layout),
         depth_stencil: None,
         multisample: MultisampleState::default()
     })

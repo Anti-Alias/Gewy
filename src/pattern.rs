@@ -205,7 +205,7 @@ mod test {
         let derpette = Node::tagged(1, Style::default(), Child);
 
         // Stores nodes, matching the tree structure above.
-        let (root_id, mut storage) = Gui::new(root);
+        let (root_id, mut storage) = NodeStorage::new(root);
         let steve_id = storage.insert(steve, root_id).unwrap();
         let sarah_id = storage.insert(sarah, root_id).unwrap();
         let bob_id = storage.insert(bob, steve_id).unwrap();

@@ -6,6 +6,8 @@ mod paint;
 mod app;
 mod err;
 mod math;
+mod view;
+mod util;
 
 pub use node::*;
 pub use widget::*;
@@ -15,6 +17,8 @@ pub use paint::*;
 pub use app::*;
 pub use math::*;
 pub use err::*;
+pub use view::*;
+pub use util::*;
 
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
 pub struct Margin {

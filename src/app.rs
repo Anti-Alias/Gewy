@@ -1,10 +1,11 @@
+use glam::Vec2;
 use wgpu::*;
 use winit::window::WindowBuilder;
 use winit::event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode};
 use winit::event_loop::{EventLoop, ControlFlow};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
-use crate::{create_pipeline, Mesh, Painter, Color, GpuMesh, Gui};
+use crate::{create_pipeline, Mesh, Painter, Color, GpuMesh, Gui, View, GpuView};
 
 pub struct App {
     width: u32,
@@ -85,7 +86,9 @@ struct State {
     window: Window,
     render_pipeline: RenderPipeline,
     mesh: Mesh,
-    gpu_mesh: GpuMesh
+    view: View,
+    gpu_mesh: GpuMesh,
+    gpu_view: GpuView
 }
 
 impl State {
@@ -149,8 +152,12 @@ impl State {
             .quad([[-v, -v], [v, -v], [v, v], [-v, v]]);
         let gpu_mesh = mesh.to_gpu(&device);
 
+        // Creates view
+        let view = View::from_physical_size(size);
+        let gpu_view = view.to_gpu(&device);
+
         // Done
-        Self { window, surface, device, queue, config, size, render_pipeline, mesh, gpu_mesh }
+        Self { window, surface, device, queue, config, size, render_pipeline, mesh, view, gpu_mesh, gpu_view }
     }
 
     pub fn window(&self) -> &Window { &self.window }
@@ -162,6 +169,8 @@ impl State {
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
         }
+        self.view = View::from_physical_size(new_size);
+        self.view.write_to_gpu(&self.device, &self.queue, &mut self.gpu_view);
     }
 
     fn input(&mut self, _event: &WindowEvent) -> bool {
@@ -173,6 +182,18 @@ impl State {
     }
 
     fn render(&mut self, gui: &mut Gui) -> Result<(), SurfaceError> {
+
+        // Updates mesh
+        self.mesh.clear();
+        let mut painter = Painter::new(&mut self.mesh);
+        let a = 200.0;
+        let b = 100.0;
+        painter
+            .set_color(Color::RED)
+            .quad([[0.0, 0.0], [a, 0.0], [a, a], [0.0, a]])
+            .set_color(Color::GREEN)
+            .quad([[0.0, 0.0], [b, 0.0], [b, b], [0.0, b]]);
+        self.mesh.write_to_gpu(&self.device, &self.queue, &mut self.gpu_mesh);
 
         // Gets surface texture
         let output = self.surface.get_current_texture()?;
@@ -195,6 +216,7 @@ impl State {
             depth_stencil_attachment: None
         });
         render_pass.set_pipeline(&self.render_pipeline);
+        render_pass.set_bind_group(0, &self.gpu_view.bind_group, &[]);
         render_pass.set_vertex_buffer(0, self.gpu_mesh.vertices.slice(..));
         render_pass.set_index_buffer(self.gpu_mesh.indices.slice(..), IndexFormat::Uint16);
         render_pass.draw_indexed(0..self.gpu_mesh.index_count, 0, 0..1);
