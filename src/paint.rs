@@ -145,7 +145,7 @@ impl<'m> Painter<'m> {
     }
 }
 
-pub fn create_pipeline(device: &Device, texture_format: TextureFormat) -> RenderPipeline {
+pub(crate) fn create_pipeline(device: &Device, texture_format: TextureFormat) -> RenderPipeline {
     let shader_source = include_str!("shader.wgsl");
     let shader_module = device.create_shader_module(ShaderModuleDescriptor {
         label: Some("Shader"),

@@ -1,4 +1,5 @@
 mod node;
+mod gui;
 mod widget;
 mod pattern;
 mod color;
@@ -10,6 +11,7 @@ mod view;
 mod util;
 
 pub use node::*;
+pub use gui::*;
 pub use widget::*;
 pub use pattern::*;
 pub use color::*;
