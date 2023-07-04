@@ -1,8 +1,7 @@
 use std::any::TypeId;
 
 use slotmap::{new_key_type, SlotMap};
-use derive_more::{Error, Display};
-use crate::{Style, Widget, Container};
+use crate::{Style, Widget, Container, GUiError, Result, NodeChildren};
 
 new_key_type! {
     /// ID of a [`Node`]
@@ -107,14 +106,14 @@ pub struct NodeInfo<'n> {
     pub id: NodeId
 }
 
-/// Storage of [`Node`]
+/// Represents a graphical user interface, and a torage of [`Node`]s.
 #[derive(Debug, Default)]
-pub struct NodeStorage {
+pub struct Gui {
     storage: SlotMap<NodeId, Node>,
     root_id: NodeId
 }
 
-impl NodeStorage {
+impl Gui {
 
     /// Creates a new [`NodeStorage`] instance alongside the id of the root node.
     pub fn new(root: Node) -> (NodeId, Self) {
@@ -131,16 +130,27 @@ impl NodeStorage {
 
     /// Inserts as a child of another.
     /// Returns id of node inserted.
-    pub fn insert(&mut self, node: Node, parent_id: NodeId) -> Result<NodeId> {        
+    pub fn insert(&mut self, mut node: Node, parent_id: NodeId) -> Result<NodeId> {
+
+        // Stores node as a child of its parent
+        node.parent_id = Some(parent_id);
         let node_id = self.storage.insert(node);
         let Some(parent) = self.storage.get_mut(parent_id) else {
-            return Err(NodeError::ParentNodeNotFound.into())
+            self.storage.remove(node_id);
+            return Err(GUiError::ParentNodeNotFound.into())
         };
         parent.children.push(node_id);
-        self.storage
-            .get_mut(node_id)
-            .unwrap()
-            .parent_id = Some(parent_id);
+
+        // Configures widget
+        unsafe {
+            let gui = self as *mut Self;
+            let gui = &mut *gui;
+            let children = NodeChildren { gui };
+            let node = self.storage.get_mut(node_id).unwrap();
+            node.widget.render_children(node_id, children)?;    // Using node past here is unsafe!!!
+        };
+
+        // Done
         Ok(node_id)
     }
 
@@ -168,11 +178,11 @@ impl NodeStorage {
     }
 
     pub fn get(&self, node_id: NodeId) -> Result<&Node> {
-        self.storage.get(node_id).ok_or(NodeError::NodeNotFound)
+        self.storage.get(node_id).ok_or(GUiError::NodeNotFound)
     }
     
     pub fn get_mut(&mut self, node_id: NodeId) -> Result<&mut Node> {
-        self.storage.get_mut(node_id).ok_or(NodeError::NodeNotFound)
+        self.storage.get_mut(node_id).ok_or(GUiError::NodeNotFound)
     }
 
     pub fn path_to(&self, node_id: NodeId) -> Result<NodePath> {
@@ -199,16 +209,6 @@ impl NodeStorage {
 }
 
 
-pub type Result<T> = std::result::Result<T, NodeError>;
-
-#[derive(Error, Clone, Eq, PartialEq, Debug, Display)]
-pub enum NodeError {
-    #[display(fmt = "Node not found")]
-    NodeNotFound,
-    #[display(fmt = "Parent not found")]
-    ParentNodeNotFound
-}
-
 // Path to a single node with the first element being the root node and the last being the node in question.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct NodePath(pub(crate) Vec<NodePathElem>);
@@ -222,11 +222,11 @@ pub(crate) struct NodePathElem {
 
 #[cfg(test)]
 mod test {
-    use crate::{NodeStorage, Node};
+    use crate::{Gui, Node};
 
     #[test]
     fn test_insert() {
-        let (root_id, mut nodes) = NodeStorage::new(Node::default());
+        let (root_id, mut nodes) = Gui::new(Node::default());
         let child_1_id = nodes.insert(Node::default(), root_id).unwrap();
         let child_2_id = nodes.insert(Node::default(), root_id).unwrap();
         
@@ -244,7 +244,7 @@ mod test {
 
     #[test]
     fn test_remove() {
-        let (root_id, mut nodes) = NodeStorage::new(Node::default());
+        let (root_id, mut nodes) = Gui::new(Node::default());
         let child_1_id = nodes.insert(Node::default(), root_id).unwrap();
         let child_2_id = nodes.insert(Node::default(), root_id).unwrap();
         

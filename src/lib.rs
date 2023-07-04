@@ -4,6 +4,7 @@ mod pattern;
 mod color;
 mod paint;
 mod app;
+mod err;
 
 pub use node::*;
 pub use widget::*;
@@ -11,6 +12,7 @@ pub use pattern::*;
 pub use color::*;
 pub use paint::*;
 pub use app::*;
+pub use err::*;
 
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
 pub struct Margin {

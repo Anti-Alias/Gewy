@@ -19,16 +19,16 @@ impl Vertex {
             array_stride: size_of::<Vertex>() as BufferAddress,
             step_mode: VertexStepMode::Vertex,
             attributes: &[
-                // Position (12 bytes)
+                // Position (8 bytes)
                 VertexAttribute {
-                    format: VertexFormat::Float32x3,
+                    format: VertexFormat::Float32x2,
                     offset: 0,
                     shader_location: 0
                 },
                 // Color (16 bytes)
                 VertexAttribute {
                     format: VertexFormat::Float32x4,
-                    offset: 12,
+                    offset: 8,
                     shader_location: 1
                 }
             ]
@@ -67,13 +67,14 @@ impl Mesh {
             contents: bytemuck::cast_slice(indices),
             usage: BufferUsages::INDEX,
         });
-        GpuMesh { vertices, indices }
+        GpuMesh { vertices, indices, index_count: self.indices.len() as u32 }
     }
 }
 
 pub struct GpuMesh {
     pub vertices: Buffer,
-    pub indices: Buffer
+    pub indices: Buffer,
+    pub index_count: u32
 }
 
 /// A point in 2D space.
@@ -147,8 +148,7 @@ pub fn create_pipeline(device: &Device, texture_format: TextureFormat) -> Render
         vertex: VertexState {
             module: &shader_module,
             entry_point: "vert_main",
-            buffers: &[Vertex::layout()],
-            //buffers: &[],
+            buffers: &[Vertex::layout()]
         },
         fragment: Some(FragmentState {
             module: &shader_module,

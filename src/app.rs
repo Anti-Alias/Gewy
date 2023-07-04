@@ -4,34 +4,38 @@ use winit::event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCo
 use winit::event_loop::{EventLoop, ControlFlow};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
-use crate::{create_pipeline, Mesh, Painter, Color, GpuMesh};
+use crate::{create_pipeline, Mesh, Painter, Color, GpuMesh, Gui};
 
 pub struct App {
-    _state: State
+    width: u32,
+    height: u32,
+    gui: Gui
 }
 
 /// Stores the application in a window.
 impl App {
-    
     /// Starts the application in a window with the resolution specified.
-    pub fn start(width: u32, height: u32) {
+    pub fn new(gui: Gui, width: u32, height: u32) -> Self {
+        Self { width, height, gui }
+    }
+
+    pub fn start(self) -> ! {
         
         // Opens window and handle high-level event
+        let Self { width, height, mut gui } = self;
         let size = PhysicalSize::new(width, height);
         let event_loop = EventLoop::new();
         let window = WindowBuilder::new()
             .with_inner_size(size)
             .build(&event_loop)
             .unwrap();
-
-        // Creates application state
         let mut state = pollster::block_on(State::new(window));
 
         // Runs event loop
         event_loop.run(move |event, _, flow| {
             match event {
                 Event::WindowEvent { event, .. } => Self::handle_window_event(event, &mut state, flow),
-                Event::RedrawRequested( .. ) => Self::handle_redraw_event(&mut state, flow),
+                Event::RedrawRequested( .. ) => Self::handle_redraw_event(&mut state, &mut gui, flow),
                 Event::MainEventsCleared => { state.window().request_redraw() }
                 _ => {}
             }
@@ -58,9 +62,9 @@ impl App {
     }
 
     // Handle redraw events events.
-    fn handle_redraw_event(state: &mut State, flow: &mut ControlFlow) {
+    fn handle_redraw_event(state: &mut State, gui: &mut Gui, flow: &mut ControlFlow) {
         state.update();
-        match state.render() {
+        match state.render(gui) {
             Ok(_) => {}
             Err(SurfaceError::Lost) => state.resize(state.size),
             Err(SurfaceError::OutOfMemory) => {
@@ -71,7 +75,6 @@ impl App {
         }
     }
 }
-
 
 struct State {
     surface: Surface,
@@ -91,7 +94,8 @@ impl State {
         // WGPU instance
         let size = window.inner_size();
         let instance = Instance::new(InstanceDescriptor {
-            backends: Backends::all(),
+            //backends: Backends::all(),
+            backends: Backends::VULKAN,
             ..Default::default()
         });
         
@@ -99,7 +103,7 @@ impl State {
         let surface = unsafe { instance.create_surface(&window) }.unwrap();
         let adapter = instance.request_adapter(
             &RequestAdapterOptions {
-                power_preference: PowerPreference::default(),
+                power_preference: PowerPreference::HighPerformance,
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             },
@@ -126,8 +130,8 @@ impl State {
             format: surface_format,
             width: size.width,
             height: size.height,
-            present_mode: surface_caps.present_modes[0],
-            alpha_mode: surface_caps.alpha_modes[0],
+            present_mode: PresentMode::Fifo,
+            alpha_mode: CompositeAlphaMode::Opaque,
             view_formats: vec![],
         };
         surface.configure(&device, &config);
@@ -140,7 +144,7 @@ impl State {
         let mut painter = Painter::new(&mut mesh);
         let v = 0.1;
         painter
-            .set_color(Color::BLUE)
+            .set_color(Color::GREEN)
             .quad([[-v, -v], [v, -v], [v, v], [-v, v]]);
         let mesh = mesh.to_gpu(&device);
 
@@ -167,7 +171,7 @@ impl State {
 
     }
 
-    fn render(&mut self) -> Result<(), SurfaceError> {
+    fn render(&mut self, gui: &mut Gui) -> Result<(), SurfaceError> {
 
         // Gets surface texture
         let output = self.surface.get_current_texture()?;
@@ -192,7 +196,7 @@ impl State {
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_vertex_buffer(0, self.mesh.vertices.slice(..));
         render_pass.set_index_buffer(self.mesh.indices.slice(..), IndexFormat::Uint16);
-        render_pass.draw(0..3, 0..1);
+        render_pass.draw_indexed(0..self.mesh.index_count, 0, 0..1);
         drop(render_pass);
 
         // Submits encoded draw calls
