@@ -117,7 +117,7 @@ pub struct Gui {
 
 impl Gui {
 
-    /// Creates a new [`NodeStorage`] instance alongside the id of the root node.
+    /// Creates a new [`Gui`] instance alongside the id of the root node.
     pub fn new(root: Node) -> (NodeId, Self) {
         let mut storage = SlotMap::<NodeId, Node>::default();
         let root_node_id = storage.insert(root);

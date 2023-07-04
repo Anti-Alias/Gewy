@@ -205,15 +205,15 @@ mod test {
         let derpette = Node::tagged(1, Style::default(), Child);
 
         // Stores nodes, matching the tree structure above.
-        let (root_id, mut storage) = NodeStorage::new(root);
-        let steve_id = storage.insert(steve, root_id).unwrap();
-        let sarah_id = storage.insert(sarah, root_id).unwrap();
-        let bob_id = storage.insert(bob, steve_id).unwrap();
-        let derp_id = storage.insert(derp, sarah_id).unwrap();
-        let derpette_id = storage.insert(derpette, sarah_id).unwrap();
+        let (root_id, mut gui) = Gui::new(root);
+        let steve_id = gui.insert(steve, root_id).unwrap();
+        let sarah_id = gui.insert(sarah, root_id).unwrap();
+        let bob_id = gui.insert(bob, steve_id).unwrap();
+        let derp_id = gui.insert(derp, sarah_id).unwrap();
+        let derpette_id = gui.insert(derpette, sarah_id).unwrap();
 
         // Matches root.
-        let path = storage.path_to(root_id).unwrap();
+        let path = gui.path_to(root_id).unwrap();
         let pattern = node_pattern!(Root);
         let mut nodes = Vec::new();
         let matches = pattern.matches(&path, &mut nodes);
@@ -221,7 +221,7 @@ mod test {
         assert_eq!(vec![root_id], nodes);
 
         // Matches steve.
-        let path = storage.path_to(steve_id).unwrap();
+        let path = gui.path_to(steve_id).unwrap();
         let pattern = node_pattern!(Root; "steve");
         let mut nodes = Vec::new();
         let matches = pattern.matches(&path, &mut nodes);
@@ -229,7 +229,7 @@ mod test {
         assert_eq!(vec![root_id, steve_id], nodes);
 
         // Matches sarah.
-        let path = storage.path_to(sarah_id).unwrap();
+        let path = gui.path_to(sarah_id).unwrap();
         let pattern = node_pattern!(Root; "sarah");
         let mut nodes = Vec::new();
         let matches = pattern.matches(&path, &mut nodes);
@@ -237,7 +237,7 @@ mod test {
         assert_eq!(vec![root_id, sarah_id], nodes);
 
         // Matches bob with an explicit path.
-        let path = storage.path_to(bob_id).unwrap();
+        let path = gui.path_to(bob_id).unwrap();
         let pattern = node_pattern!(Root; "steve", "bob");
         let mut nodes = Vec::new();
         let matches = pattern.matches(&path, &mut nodes);
@@ -245,7 +245,7 @@ mod test {
         assert_eq!(vec![root_id, steve_id, bob_id], nodes);
 
         // Matches bob with an implicit path.
-        let path = storage.path_to(bob_id).unwrap();
+        let path = gui.path_to(bob_id).unwrap();
         let pattern = node_pattern!(Root; "bob");
         let mut nodes = Vec::new();
         let matches = pattern.matches(&path, &mut nodes);
@@ -253,20 +253,15 @@ mod test {
         assert_eq!(vec![root_id, bob_id], nodes);
 
         // Matches derp
-        let path = storage.path_to(derp_id).unwrap();
+        let path = gui.path_to(derp_id).unwrap();
         let pattern = node_pattern!(Root; "sarah", 0);
         let mut nodes = Vec::new();
         let matches = pattern.matches(&path, &mut nodes);
         assert!(matches);
         assert_eq!(vec![root_id, sarah_id, derp_id], nodes);
 
-        let mut pattern = NodePattern::new();
-        pattern.push(widget::<Root>());
-        pattern.push("steve");
-        pattern.push(1);
-
         // Matches derpette
-        let path = storage.path_to(derpette_id).unwrap();
+        let path = gui.path_to(derpette_id).unwrap();
         let pattern = node_pattern!(Root; "sarah", 1);
         let mut nodes = Vec::new();
         let matches = pattern.matches(&path, &mut nodes);

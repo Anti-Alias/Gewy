@@ -1,4 +1,3 @@
-use glam::Vec2;
 use wgpu::*;
 use winit::window::WindowBuilder;
 use winit::event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode};
@@ -181,7 +180,7 @@ impl State {
 
     }
 
-    fn render(&mut self, gui: &mut Gui) -> Result<(), SurfaceError> {
+    fn render(&mut self, _gui: &mut Gui) -> Result<(), SurfaceError> {
 
         // Updates mesh
         self.mesh.clear();

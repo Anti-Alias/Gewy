@@ -8,7 +8,7 @@ use crate::write_to_buffer;
 /// Represents the "view" or "camera" that determines where polygons fall on the screen.
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, PartialEq, Debug)]
-pub(crate) struct View {
+pub struct View {
     pub proj_view: Mat4
 }
 
@@ -21,7 +21,6 @@ impl View {
             Mat4::orthographic_rh(-hw, hw, -hh, hh, 0.0, 1.0) *
             Mat4::from_scale(Vec3::new(1.0, -1.0, 1.0)) *
             Mat4::from_translation(Vec3::new(-hw, -hh, 0.0));
-        //let proj_view = 2.0 * Mat4::from_scale(Vec3::new(2.0, 2.0, 2.0));
         Self { proj_view }
     }
 
@@ -65,7 +64,7 @@ impl View {
 }
 
 /// GPU representation of a [`View`] as a bind group.
-pub(crate) struct GpuView {
+pub struct GpuView {
     pub buffer: Buffer,
     pub bind_group: BindGroup
 }
