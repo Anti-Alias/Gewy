@@ -1,7 +1,7 @@
 use std::any::TypeId;
 
 use slotmap::{new_key_type, SlotMap};
-use crate::{Style, Widget, Container, GUiError, Result, NodeChildren};
+use crate::{Style, Widget, Container, GUiError, Result, NodeChildren, Rect};
 
 new_key_type! {
     /// ID of a [`Node`]
@@ -14,7 +14,8 @@ pub struct Node {
     pub(crate) widget: Box<dyn Widget>,
     pub(crate) tag: Tag,
     pub(crate) children: Vec<NodeId>,
-    pub(crate) parent_id: Option<NodeId>
+    pub(crate) parent_id: Option<NodeId>,
+    pub(crate) computed_region: Rect
 }
 
 impl Default for Node {
@@ -25,6 +26,7 @@ impl Default for Node {
             tag: Default::default(),
             children: Vec::new(),
             parent_id: None,
+            computed_region: Rect::default()
         }
     }
 }

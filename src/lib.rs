@@ -5,6 +5,7 @@ mod color;
 mod paint;
 mod app;
 mod err;
+mod math;
 
 pub use node::*;
 pub use widget::*;
@@ -12,6 +13,7 @@ pub use pattern::*;
 pub use color::*;
 pub use paint::*;
 pub use app::*;
+pub use math::*;
 pub use err::*;
 
 #[derive(Copy, Clone, PartialEq, Default, Debug)]

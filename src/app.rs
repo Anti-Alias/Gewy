@@ -84,7 +84,8 @@ struct State {
     size: winit::dpi::PhysicalSize<u32>,
     window: Window,
     render_pipeline: RenderPipeline,
-    mesh: GpuMesh
+    mesh: Mesh,
+    gpu_mesh: GpuMesh
 }
 
 impl State {
@@ -146,10 +147,10 @@ impl State {
         painter
             .set_color(Color::GREEN)
             .quad([[-v, -v], [v, -v], [v, v], [-v, v]]);
-        let mesh = mesh.to_gpu(&device);
+        let gpu_mesh = mesh.to_gpu(&device);
 
         // Done
-        Self { window, surface, device, queue, config, size, render_pipeline, mesh }
+        Self { window, surface, device, queue, config, size, render_pipeline, mesh, gpu_mesh }
     }
 
     pub fn window(&self) -> &Window { &self.window }
@@ -194,9 +195,9 @@ impl State {
             depth_stencil_attachment: None
         });
         render_pass.set_pipeline(&self.render_pipeline);
-        render_pass.set_vertex_buffer(0, self.mesh.vertices.slice(..));
-        render_pass.set_index_buffer(self.mesh.indices.slice(..), IndexFormat::Uint16);
-        render_pass.draw_indexed(0..self.mesh.index_count, 0, 0..1);
+        render_pass.set_vertex_buffer(0, self.gpu_mesh.vertices.slice(..));
+        render_pass.set_index_buffer(self.gpu_mesh.indices.slice(..), IndexFormat::Uint16);
+        render_pass.draw_indexed(0..self.gpu_mesh.index_count, 0, 0..1);
         drop(render_pass);
 
         // Submits encoded draw calls
