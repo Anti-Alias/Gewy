@@ -74,6 +74,8 @@ impl App {
 // lib.rs
 use winit::window::Window;
 
+use crate::{ColorVertex, create_color_pipeline};
+
 struct State {
     surface: Surface,
     device: Device,
@@ -133,35 +135,7 @@ impl State {
         surface.configure(&device, &config);
 
         // Builds render pipeline
-        let render_pipeline = {
-            let shader_source = include_str!("shader.wgsl");
-            let shader_module = device.create_shader_module(ShaderModuleDescriptor {
-                label: Some("Shader"),
-                source: ShaderSource::Wgsl(shader_source.into()),
-            });
-            device.create_render_pipeline(&RenderPipelineDescriptor {
-                label: Some("Render Pipeline"),
-                vertex: VertexState {
-                    module: &shader_module,
-                    entry_point: "vert_main",
-                    buffers: &[],
-                },
-                fragment: Some(FragmentState {
-                    module: &shader_module,
-                    entry_point: "frag_main",
-                    targets: &[Some(ColorTargetState {
-                        format: config.format,
-                        blend: Some(BlendState::REPLACE),
-                        write_mask: ColorWrites::ALL
-                    })]
-                }),
-                primitive: PrimitiveState::default(),
-                multiview: None,
-                layout: None,
-                depth_stencil: None,
-                multisample: MultisampleState::default()
-            })
-        };
+        let render_pipeline = create_color_pipeline(&device, surface_format);
 
         // Done
         Self { window, surface, device, queue, config, size, render_pipeline }
@@ -202,12 +176,7 @@ impl State {
                 view: &view,
                 resolve_target: None,
                 ops: Operations {
-                    load: LoadOp::Clear(Color {
-                        r: 0.1,
-                        g: 0.2,
-                        b: 0.3,
-                        a: 1.0
-                    }),
+                    load: LoadOp::Clear(Color::BLACK),
                     store: true
                 },
             })],
