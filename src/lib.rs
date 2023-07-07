@@ -10,7 +10,6 @@ mod err;
 mod math;
 mod view;
 mod util;
-mod style_calc;
 mod extensions;
 
 pub use node::*;

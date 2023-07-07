@@ -90,9 +90,9 @@ pub type Point = [f32; 2];
 
 /// Painter that helps write vertices to a [`Mesh`] in a more structured and controlled way.
 pub struct Painter<'m> {
+    pub translation: Vec2,
+    pub color: Color,
     mesh: &'m mut Mesh,
-    translation: Vec2,
-    color: Color,
     index: u16
 }
 
@@ -107,34 +107,30 @@ impl<'m> Painter<'m> {
         }
     }
 
-    pub fn set_color(&mut self, color: Color) -> &mut Self {
-        self.color = color;
-        self
-    }
-
-    pub fn triangle(&mut self, points: [Point; 3]) -> &mut Self {
+    pub fn triangle(&mut self, points: [Vec2; 3]) {
         let i = self.index;
         self.mesh.vertices.extend(self.to_vertices(points));
         self.mesh.indices.extend([i+0, i+1, i+2]);
         self.index += 3;
-        self
     }
 
-    pub fn quad(&mut self, points: [Point; 4]) -> &mut Self {
+    pub fn rect(&mut self, x: f32, y: f32, width: f32, height: f32) {
+        self.quad([
+            Vec2::new(x, y),
+            Vec2::new(x + width, 0.0),
+            Vec2::new(x + width, y + height),
+            Vec2::new(x, y + height),
+        ]);
+    }
+
+    pub fn quad(&mut self, points: [Vec2; 4]) {
         let i = self.index;
         self.mesh.vertices.extend(self.to_vertices(points));
         self.mesh.indices.extend([i+0, i+1, i+2, i+2, i+3, i+0]);
         self.index += 4;
-        self
     }
 
-    pub(crate) fn relative(self, translation: Vec2) -> Self {
-        let mut result = Self::new(self.mesh);
-        result.translation += translation;
-        result
-    }
-
-    fn to_vertices<const N: usize>(&self, points: [Point; N]) -> [Vertex; N] {
+    fn to_vertices<const N: usize>(&self, points: [Vec2; N]) -> [Vertex; N] {
         let t = self.translation;
         points.map(|p| {
             Vertex {

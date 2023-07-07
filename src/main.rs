@@ -18,7 +18,19 @@ fn make_gui() -> Gui {
         },
         Container
     );
+
+    let blue = Node::tagged(
+        "blue",
+        Style {
+            color: Color::BLUE,
+            ..Default::default()
+        },
+        Container
+    );
+
     let gui_size = Vec2::new(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32);
-    let (_root_id, gui) = Gui::new(root, gui_size);
+    let (root_id, mut gui) = Gui::new(root, gui_size);
+    let _blue_id = gui.insert(blue, root_id).unwrap();
+
     gui
 }

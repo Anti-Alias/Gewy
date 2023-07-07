@@ -1,10 +1,11 @@
+use glam::Vec2;
 use wgpu::*;
 use winit::window::WindowBuilder;
 use winit::event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode};
 use winit::event_loop::{EventLoop, ControlFlow};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
-use crate::{create_pipeline, Mesh, Painter, Color, GpuMesh, Gui, View, GpuView};
+use crate::{create_pipeline, Mesh, Color, GpuMesh, Gui, View, GpuView, Painter};
 
 pub struct App {
     width: u32,
@@ -24,18 +25,19 @@ impl App {
         // Opens window and handle high-level event
         let Self { width, height, mut gui } = self;
         let size = PhysicalSize::new(width, height);
+        gui.resize(Vec2::new(size.width as f32, size.height as f32));
         let event_loop = EventLoop::new();
         let window = WindowBuilder::new()
             .with_inner_size(size)
             .build(&event_loop)
             .unwrap();
-        let mut state = pollster::block_on(State::new(window));
+        let mut state = pollster::block_on(State::new(window, gui));
 
         // Runs event loop
         event_loop.run(move |event, _, flow| {
             match event {
                 Event::WindowEvent { event, .. } => Self::handle_window_event(event, &mut state, flow),
-                Event::RedrawRequested( .. ) => Self::handle_redraw_event(&mut state, &mut gui, flow),
+                Event::RedrawRequested( .. ) => Self::handle_redraw_event(&mut state, flow),
                 Event::MainEventsCleared => { state.window().request_redraw() }
                 _ => {}
             }
@@ -62,9 +64,9 @@ impl App {
     }
 
     // Handle redraw events events.
-    fn handle_redraw_event(state: &mut State, gui: &mut Gui, flow: &mut ControlFlow) {
+    fn handle_redraw_event(state: &mut State, flow: &mut ControlFlow) {
         state.update();
-        match state.render(gui) {
+        match state.render() {
             Ok(_) => {}
             Err(SurfaceError::Lost) => state.resize(state.size),
             Err(SurfaceError::OutOfMemory) => {
@@ -84,6 +86,7 @@ struct State {
     size: winit::dpi::PhysicalSize<u32>,
     window: Window,
     render_pipeline: RenderPipeline,
+    gui: Gui,
     mesh: Mesh,
     view: View,
     gpu_mesh: GpuMesh,
@@ -92,7 +95,7 @@ struct State {
 
 impl State {
     
-    async fn new(window: Window) -> Self {
+    async fn new(window: Window, gui: Gui) -> Self {
        
         // WGPU instance
         let size = window.inner_size();
@@ -142,13 +145,8 @@ impl State {
         // Builds render pipeline
         let render_pipeline = create_pipeline(&device, surface_format);
 
-        // Creates a mesh and paints a quad to it
-        let mut mesh = Mesh::new();
-        let mut painter = Painter::new(&mut mesh);
-        let v = 0.1;
-        painter
-            .set_color(Color::GREEN)
-            .quad([[-v, -v], [v, -v], [v, v], [-v, v]]);
+        // Creates a mesh/gpu mesh.
+        let mesh = Mesh::new();
         let gpu_mesh = mesh.to_gpu(&device);
 
         // Creates view
@@ -156,12 +154,13 @@ impl State {
         let gpu_view = view.to_gpu(&device);
 
         // Done
-        Self { window, surface, device, queue, config, size, render_pipeline, mesh, view, gpu_mesh, gpu_view }
+        Self { window, surface, device, queue, config, size, render_pipeline, gui, mesh, view, gpu_mesh, gpu_view }
     }
 
     pub fn window(&self) -> &Window { &self.window }
 
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
+        //self.gui.resize(Vec2::new(new_size.width as f32, new_size.height as f32));
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
             self.config.width = new_size.width;
@@ -180,19 +179,12 @@ impl State {
 
     }
 
-    fn render(&mut self, _gui: &mut Gui) -> Result<(), SurfaceError> {
+    fn render(&mut self) -> Result<(), SurfaceError> {
 
         // Updates mesh
         self.mesh.clear();
-        let mut painter = Painter::new(&mut self.mesh);
-        let a = 200.0;
-        let b = 100.0;
-        painter
-            .set_color(Color::RED)
-            .quad([[0.0, 0.0], [a, 0.0], [a, a], [0.0, a]])
-            .set_color(Color::GREEN)
-            .quad([[0.0, 0.0], [b, 0.0], [b, b], [0.0, b]]);
-        self.mesh.write_to_gpu(&self.device, &self.queue, &mut self.gpu_mesh);
+        self.gui.paint(&mut Painter::new(&mut self.mesh));
+        self.mesh.write_to_gpu(&self.device, &self.queue, &mut self.gpu_mesh);        
 
         // Gets surface texture
         let output = self.surface.get_current_texture()?;

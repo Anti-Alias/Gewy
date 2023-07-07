@@ -1,6 +1,6 @@
 use glam::Vec2;
 use slotmap::SlotMap;
-use crate::{GUiError, Result, NodeChildren, Node, NodeId, NodePath, NodePathElem, Rect, Layout, JustifyContent, extensions::VecExtensions};
+use crate::{GUiError, Result, NodeChildren, Node, NodeId, NodePath, NodePathElem, Rect, Layout, JustifyContent, extensions::VecExtensions, Painter};
 
 /// Represents a graphical user interface, and a torage of [`Node`]s.
 #[derive(Debug, Default)]
@@ -107,6 +107,30 @@ impl Gui {
         let node = self.get_mut(self.root_id).unwrap();
         node.cache.region = Rect::new(Vec2::ZERO, size);
         self.compute_region(self.root_id);
+    }
+
+    pub(crate) fn paint(&mut self, painter: &mut Painter) {
+        self.paint_node(self.root_id, painter);
+    }
+
+    fn paint_node(&mut self, node_id: NodeId, painter: &mut Painter) {
+        
+        // Unpacks node
+        let node = self.get(node_id).unwrap();
+        let widget = &node.widget;
+        let style = &node.style;
+
+        // Paints widget
+        painter.translation = node.cache.region.pos;
+        widget.render_self(style, node.cache.region.size, painter);
+
+        // Renders children of node
+        let children: &[NodeId] = unsafe {
+            std::mem::transmute(node.children())
+        };
+        for child_id in children {
+            self.paint_node(*child_id, painter);
+        }
     }
 
     fn compute_region<'a>(&'a mut self, node_id: NodeId) {
