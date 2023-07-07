@@ -1,7 +1,11 @@
 use another_rust_ui::{App, Gui, Node, Style, Container, Color};
+use glam::Vec2;
+
+const WINDOW_WIDTH: u32 = 512;
+const WINDOW_HEIGHT: u32 = 512;
 
 fn main() {
-    App::new(make_gui(), 512, 512).start();
+    App::new(make_gui(), WINDOW_WIDTH, WINDOW_HEIGHT).start();
 }
 
 
@@ -14,6 +18,7 @@ fn make_gui() -> Gui {
         },
         Container
     );
-    let (_root_id, gui) = Gui::new(root);
+    let gui_size = Vec2::new(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32);
+    let (_root_id, gui) = Gui::new(root, gui_size);
     gui
 }

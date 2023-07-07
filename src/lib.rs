@@ -1,5 +1,6 @@
 mod node;
 mod gui;
+mod style;
 mod widget;
 mod pattern;
 mod color;
@@ -9,9 +10,12 @@ mod err;
 mod math;
 mod view;
 mod util;
+mod style_calc;
+mod extensions;
 
 pub use node::*;
 pub use gui::*;
+pub use style::*;
 pub use widget::*;
 pub use pattern::*;
 pub use color::*;
@@ -21,38 +25,3 @@ pub use math::*;
 pub use err::*;
 pub use view::*;
 pub use util::*;
-
-#[derive(Copy, Clone, PartialEq, Default, Debug)]
-pub struct Margin {
-    pub top: f32,
-    pub right: f32,
-    pub bottom: f32,
-    pub left: f32
-}
-
-impl Margin {
-    pub fn new(top: f32, right: f32, bottom: f32, left: f32) -> Self {
-        Self { top, right, bottom, left }
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Default, Debug)]
-pub struct Padding {
-    pub top: f32,
-    pub right: f32,
-    pub bottom: f32,
-    pub left: f32
-}
-
-impl Padding {
-    pub fn new(top: f32, right: f32, bottom: f32, left: f32) -> Self {
-        Self { top, right, bottom, left }
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Default)]
-pub struct Style {
-    pub color: Color,
-    pub margin: Margin,
-    pub padding: Padding
-}

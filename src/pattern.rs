@@ -175,6 +175,8 @@ macro_rules! node_pattern {
 
 #[cfg(test)]
 mod test {
+    use glam::Vec2;
+
     use crate::*;
     
     #[derive(Debug)]
@@ -205,7 +207,7 @@ mod test {
         let derpette = Node::tagged(1, Style::default(), Child);
 
         // Stores nodes, matching the tree structure above.
-        let (root_id, mut gui) = Gui::new(root);
+        let (root_id, mut gui) = Gui::new(root, Vec2::new(100.0, 100.0));
         let steve_id = gui.insert(steve, root_id).unwrap();
         let sarah_id = gui.insert(sarah, root_id).unwrap();
         let bob_id = gui.insert(bob, steve_id).unwrap();

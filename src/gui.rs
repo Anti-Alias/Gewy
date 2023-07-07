@@ -1,5 +1,6 @@
+use glam::Vec2;
 use slotmap::SlotMap;
-use crate::{GUiError, Result, NodeChildren, Node, NodeId, NodePath, NodePathElem};
+use crate::{GUiError, Result, NodeChildren, Node, NodeId, NodePath, NodePathElem, Rect, Layout, style_calc::basis_px, JustifyContent, Axis, XAxis, YAxis, extensions::VecExtensions, node};
 
 /// Represents a graphical user interface, and a torage of [`Node`]s.
 #[derive(Debug, Default)]
@@ -11,10 +12,11 @@ pub struct Gui {
 impl Gui {
 
     /// Creates a new [`Gui`] instance alongside the id of the root node.
-    pub fn new(root: Node) -> (NodeId, Self) {
+    pub fn new(root: Node, size: Vec2) -> (NodeId, Self) {
         let mut storage = SlotMap::<NodeId, Node>::default();
         let root_node_id = storage.insert(root);
-        let slf = Self { storage, root_id: root_node_id };
+        let mut slf = Self { storage, root_id: root_node_id };
+        slf.resize(size);
         (root_node_id, slf)
     }
 
@@ -34,7 +36,7 @@ impl Gui {
             self.storage.remove(node_id);
             return Err(GUiError::ParentNodeNotFound.into())
         };
-        parent.children.push(node_id);
+        parent.children_ids.push(node_id);
 
         // Configures widget
         unsafe {
@@ -61,12 +63,12 @@ impl Gui {
         };
         if let Some(parent_id) = node.parent_id {
             let parent = self.storage.get_mut(parent_id).unwrap();
-            let child_idx = parent.children.iter()
+            let child_idx = parent.children_ids.iter()
                 .position(|child_id| child_id == &node_id)
                 .unwrap();
-            parent.children.remove(child_idx);
+            parent.children_ids.remove(child_idx);
         }
-        for child_id in std::mem::take(&mut node.children) {
+        for child_id in std::mem::take(&mut node.children_ids) {
             self.remove(child_id);
         };
         Some(node)
@@ -78,6 +80,10 @@ impl Gui {
     
     pub fn get_mut(&mut self, node_id: NodeId) -> Result<&mut Node> {
         self.storage.get_mut(node_id).ok_or(GUiError::NodeNotFound)
+    }
+
+    pub unsafe fn get_mut_unsafe(&mut self, node_id: NodeId) -> Result<&'static mut Node> {
+        std::mem::transmute(self.get_mut(node_id))
     }
 
     pub fn path_to(&self, node_id: NodeId) -> Result<NodePath> {
@@ -97,20 +103,120 @@ impl Gui {
         Ok(NodePath(result))
     }
 
-    // Gets all of the nodes for all of the ids supplied.
-    pub(crate) fn get_all<const N: usize>(&mut self, ids: [NodeId; N]) -> [&mut Node; N] {
-        self.storage.get_disjoint_mut(ids).unwrap()
+    pub fn resize(&mut self, size: Vec2) {
+        let node = unsafe { self.get_mut_unsafe(self.root_id).unwrap() };
+        node.cache.region = Rect::new(Vec2::ZERO, size);
+        self.compute_regions_of(node, &mut Vec::new());
+    }
+
+    fn compute_regions_of<'a>(&'a mut self, node: &mut Node, children: &mut Vec<&'a mut Node>) {
+        
+        // Gets children
+        let layout_direction = node.style.layout.direction;
+        unsafe { self.get_nodes(children, &node.children_ids); }
+        if children.is_empty() { return }
+
+        // Computes their regions
+        if layout_direction.is_reverse() { children.reverse() };
+        let region = node.cache.region;
+        match layout_direction.is_row() {
+            true => self.compute_regions::<XAxis>(children, region, node.style.layout),
+            false => self.compute_regions::<YAxis>(children, region, node.style.layout)
+        }
+    }
+
+    fn compute_regions<A: Axis>(
+        &mut self,
+        nodes: &mut Vec<&mut Node>,
+        parent_region: Rect,
+        parent_layout: Layout
+    ) {
+        // Computes basis of each node, and returns the total
+        let parent_width = parent_region.get_width::<A>();
+        let basis_total: f32 = nodes.iter_mut()
+            .map(|n| {
+                let basis = n.style.get_basis_px::<A>(parent_width);
+                n.cache.basis = basis;
+                basis
+            })
+            .sum();
+
+        // Growing scenario
+        if basis_total <= parent_width {
+            self.grow_children::<A>(nodes, basis_total, parent_region, parent_layout);
+        }
+
+        // Shrinking scenario
+        else {
+            unimplemented!("Shrinking not yet supported");
+        }
+    }
+
+    fn grow_children<A: Axis>(
+        &mut self,
+        nodes: &mut Vec<&mut Node>,
+        basis_total: f32,
+        parent_region: Rect,
+        parent_layout: Layout
+    ) {
+        let parent_size = parent_region.size;
+        let width_remaining = parent_size.get_x::<A>() - basis_total;
+        let ps = parent_size.flip::<A>();
+        let starting_pos = parent_region.pos + match parent_layout.justify_content {
+            JustifyContent::Start => Vec2::ZERO,
+            JustifyContent::End => Vec2::new(ps.x - basis_total, 0.0).flip::<A>(),
+            JustifyContent::Center => Vec2::new(ps.x/2.0 - basis_total / 2.0, ps.y).flip::<A>(),
+            JustifyContent::SpaceBetween => todo!(),
+            JustifyContent::SpaceAround => todo!(),
+            JustifyContent::SpaceEvenly => todo!(),
+        };
+        let space_between = match parent_layout.justify_content {
+            JustifyContent::Start | JustifyContent::End | JustifyContent::Center => 0.0,
+            JustifyContent::SpaceBetween => todo!(),
+            JustifyContent::SpaceAround => todo!(),
+            JustifyContent::SpaceEvenly => todo!(),
+        };
+        
+        // Computes the growth total of each node
+        let grow_total = nodes
+            .iter()
+            .map(|n| n.style.config.grow.max(0.0))
+            .sum::<f32>()
+            .max(1.0);
+
+        let mut pos = starting_pos;
+        for node in nodes {
+            let grow_perc = node.style.config.grow / grow_total;
+            let node_width = node.cache.basis + width_remaining * grow_perc;
+            let node_height = parent_size.y;
+            let node_size = Vec2::newa::<A>(node_width, node_height);
+            let region = Rect::new(pos, node_size);
+            node.cache.region = region;
+            pos += Vec2::newa::<A>(region.size.x + space_between, 0.0);
+        }
+        let grow_total = grow_total.max(1.0);
+    }
+
+    unsafe fn get_nodes<'a>(&mut self, nodes: &mut Vec<&'a mut Node>, node_ids: &[NodeId]) {
+        nodes.clear();
+        for node_id in node_ids {
+            let node = self.get_mut(*node_id).unwrap();
+            let node = std::mem::transmute(node);
+            nodes.push(node);
+        }
     }
 }
 
 
 #[cfg(test)]
 mod test {
+    use glam::Vec2;
+
     use crate::{Gui, Node};
 
     #[test]
     fn test_insert() {
-        let (root_id, mut nodes) = Gui::new(Node::default());
+        let (root_id, mut nodes) = Gui::new(Node::default(), Vec2::new(100.0, 100.0));
         let child_1_id = nodes.insert(Node::default(), root_id).unwrap();
         let child_2_id = nodes.insert(Node::default(), root_id).unwrap();
         
@@ -128,7 +234,7 @@ mod test {
 
     #[test]
     fn test_remove() {
-        let (root_id, mut nodes) = Gui::new(Node::default());
+        let (root_id, mut nodes) = Gui::new(Node::default(), Vec2::new(100.0, 100.0));
         let child_1_id = nodes.insert(Node::default(), root_id).unwrap();
         let child_2_id = nodes.insert(Node::default(), root_id).unwrap();
         

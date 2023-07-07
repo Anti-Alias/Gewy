@@ -13,9 +13,9 @@ pub struct Node {
     pub(crate) style: Style,
     pub(crate) widget: Box<dyn Widget>,
     pub(crate) tag: Tag,
-    pub(crate) children: Vec<NodeId>,
+    pub(crate) children_ids: Vec<NodeId>,
     pub(crate) parent_id: Option<NodeId>,
-    pub(crate) computed_region: Rect
+    pub(crate) cache: Cache
 }
 
 impl Default for Node {
@@ -24,9 +24,9 @@ impl Default for Node {
             style: Default::default(),
             widget: Box::new(Container),
             tag: Default::default(),
-            children: Vec::new(),
+            children_ids: Vec::new(),
             parent_id: None,
-            computed_region: Rect::default()
+            cache: Default::default()
         }
     }
 }
@@ -68,7 +68,7 @@ impl Node {
     pub fn get_widget_mut(&mut self) -> &mut dyn Widget { self.widget.as_mut() }
     pub fn get_tag(&self) -> &Tag { &self.tag }
     pub fn get_tag_mut(&mut self) -> &mut Tag { &mut self.tag }
-    pub fn children(&self) -> &[NodeId] { &self.children }
+    pub fn children(&self) -> &[NodeId] { &self.children_ids }
     pub fn parent(&self) -> Option<NodeId> { self.parent_id }
 }
 
@@ -117,4 +117,10 @@ pub(crate) struct NodePathElem {
     pub(crate) id: NodeId,          // ID of the node
     pub(crate) tag: Tag,            // Tag of the node
     pub(crate) widget_type: TypeId  // Widget type of the node
+}
+
+#[derive(Copy, Clone, PartialEq, Default, Debug)]
+pub(crate) struct Cache {
+    pub region: Rect,
+    pub basis: f32
 }
