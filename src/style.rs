@@ -12,21 +12,9 @@ pub struct Style {
 }
 
 impl Style {
-    pub fn get_width<A: Axis>(&self) -> Val {
-        A::get_x(self.width, self.height)
-    }
-    pub fn get_height<A: Axis>(&self) -> Val {
-        A::get_y(self.width, self.height)
-    }
-    pub fn set_width<A: Axis>(&mut self, width: Val) {
-        A::set_x(&mut self.width, &mut self.height, width);
-    }
-    pub fn set_height<A: Axis>(&mut self, height: Val) {
-        A::set_y(&mut self.width, &mut self.height, height);
-    }
-
-    pub fn get_basis_px<A: Axis>(&self, parent_width: f32) -> f32 {
-        match (self.config.basis, self.get_width::<A>()) {
+    pub fn get_basis(&self, parent_width: f32, is_row: bool) -> f32 {
+        let width = if is_row { self.width } else { self.height };
+        match (self.config.basis, width) {
             (Val::Px(px), _) => px,
             (Val::Pc(pc), _) => pc * parent_width,
             (Val::Auto, Val::Px(px)) => px,
@@ -102,7 +90,7 @@ impl Direction {
         self == Self::RowReverse || self == Self::ColumnReverse
     }
     pub fn is_row(self) -> bool {
-        self == Self::Row || self == Self::RowReverse
+        self == Self::Column || self == Self::ColumnReverse
     }
 }
 
