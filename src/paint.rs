@@ -114,6 +114,7 @@ impl Painter {
         }
     }
 
+    /// Paints a triangle.
     pub fn triangle(&mut self, points: [Vec2; 3]) -> &mut Self {
         let i = self.index;
         self.mesh.vertices.extend(self.to_vertices(points));
@@ -122,6 +123,7 @@ impl Painter {
         self
     }
 
+    /// Paints a rectangle.
     pub fn rect(&mut self, position: Vec2, size: Vec2) -> &mut Self {
         let p = position;
         self.quad([
@@ -133,6 +135,8 @@ impl Painter {
         self
     }
 
+    /// Paints a circle with a radius.
+    /// The number of points scales with the radius.
     pub fn circle(&mut self, center: Vec2, radius: f32) -> &mut Self {
 
         let num_verts = radius_to_vertex_count(radius);
@@ -162,6 +166,7 @@ impl Painter {
         self
     }
 
+    /// Paint a quad with four points.
     pub fn quad(&mut self, points: [Vec2; 4]) -> &mut Self {
         let i = self.index;
         self.mesh.vertices.extend(self.to_vertices(points));
@@ -170,16 +175,15 @@ impl Painter {
         self
     }
 
+    /// Creates a shape painter that references this painter.
+    pub fn shape(&mut self) -> ShapePainter<'_> {
+        ShapePainter { painter: self }
+    }
+
     pub(crate) fn flush(&mut self, device: &Device, queue: &Queue, gpu_mesh: &mut GpuMesh) {
         self.mesh.write_to_gpu(device, queue, gpu_mesh);
         self.mesh.clear();
         self.index = 0;
-    }
-
-    /// Creates a shape that references this painter.
-    /// Useful for drawing complex shapes with a fan stemming from the first point specified.
-    pub fn shape(&mut self) -> ShapePainter<'_> {
-        ShapePainter { painter: self }
     }
 
     fn to_vertices<const N: usize>(&self, points: [Vec2; N]) -> [Vertex; N] {
@@ -187,7 +191,7 @@ impl Painter {
     }
 }
 
-/// Paints a fan. Will connect point[N] with point[1] if connected is specified.
+/// Paints triangles as a "fan" (https://www.khronos.org/opengl/wiki/Primitive).
 pub struct ShapePainter<'p> {
     painter: &'p mut Painter
 }
