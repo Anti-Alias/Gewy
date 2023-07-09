@@ -114,14 +114,15 @@ impl Painter {
         }
     }
 
-    pub fn triangle(&mut self, points: [Vec2; 3]) {
+    pub fn triangle(&mut self, points: [Vec2; 3]) -> &mut Self {
         let i = self.index;
         self.mesh.vertices.extend(self.to_vertices(points));
         self.mesh.indices.extend([i+0, i+1, i+2]);
         self.index += 3;
+        self
     }
 
-    pub fn rect(&mut self, position: Vec2, size: Vec2) {
+    pub fn rect(&mut self, position: Vec2, size: Vec2) -> &mut Self {
         let p = position;
         self.quad([
             Vec2::new(p.x, p.y),
@@ -129,12 +130,13 @@ impl Painter {
             Vec2::new(p.x + size.x, p.y + size.y),
             Vec2::new(p.x, p.y + size.y)
         ]);
+        self
     }
 
-    pub fn circle(&mut self, center: Vec2, radius: f32) {
+    pub fn circle(&mut self, center: Vec2, radius: f32) -> &mut Self {
 
         let num_verts = radius_to_vertex_count(radius);
-        if num_verts < 3 { return }
+        if num_verts < 3 { return self }
         let num_indices = num_verts * 3 - 6;
 
         self.mesh.vertices.reserve(num_verts as usize);
@@ -156,15 +158,16 @@ impl Painter {
             self.mesh.indices.push(self.index + i);
             self.mesh.indices.push(self.index + i + 1);
         }
-
         self.index += num_verts;
+        self
     }
 
-    pub fn quad(&mut self, points: [Vec2; 4]) {
+    pub fn quad(&mut self, points: [Vec2; 4]) -> &mut Self {
         let i = self.index;
         self.mesh.vertices.extend(self.to_vertices(points));
         self.mesh.indices.extend([i+0, i+1, i+2, i+2, i+3, i+0]);
         self.index += 4;
+        self
     }
 
     pub(crate) fn flush(&mut self, device: &Device, queue: &Queue, gpu_mesh: &mut GpuMesh) {
@@ -206,14 +209,13 @@ impl<'p> ShapePainter<'p> {
         let vertices = points.map(|point| Vertex { position: point, color: self.painter.color });
         self.vertices(vertices);
     }
-    pub fn quarter_circle(&mut self, center: Vec2, radius: f32, radians_offset: f32) {
+    pub fn quarter_circle(&mut self, center: Vec2, radius: f32, radians_offset: f32) -> &mut Self {
         let circle_vertex_count = radius_to_vertex_count(radius);
         if circle_vertex_count < 3 {
             self.point(center);
-            return;
+            return self;
         }
         let vertex_count = circle_vertex_count / 4 + 1;
-        if vertex_count == 0 { return }
         let circle_vertex_count = circle_vertex_count as f32;
         for i in 0..vertex_count {
             let i = i as f32;
@@ -221,6 +223,7 @@ impl<'p> ShapePainter<'p> {
             let point = center + Vec2::from_angle(radians + radians_offset) * radius;
             self.point(point);
         }
+        self
     }
 }
 

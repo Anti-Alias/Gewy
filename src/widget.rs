@@ -1,10 +1,9 @@
-use std::{fmt::Debug, any::Any, f32::consts::{FRAC_PI_2, PI, TAU, FRAC_PI_3}};
-
+use std::fmt::Debug;
+use std::any::Any;
+use std::f32::consts::{FRAC_PI_2, PI};
 use glam::Vec2;
-
 use crate::{NodeId, Gui, Node, Result, Painter, Style, Corners};
 
-const EPS: f32 = 0.001;
 
 /// Represents the "type", state and rendering code of a [`crate::Node`].
 pub trait Widget: Debug + Any + 'static {
@@ -13,40 +12,42 @@ pub trait Widget: Debug + Any + 'static {
     fn render_children<'n>(&mut self, node_id: NodeId, children: NodeChildren<'n>) -> Result<()> {
         Ok(())
     }
-
-    /// Renders self by painting. TODO.
-    fn render_self(&self, style: &Style, canvas_size: Vec2, painter: &mut Painter) {}
+    /// Renders self by painting
+    fn render_self(&self, _style: &Style, _canvas_size: Vec2, _painter: &mut Painter) {}
 }
 
-/// Zero-sized sentinal type that is treated specially.
-/// Performs no rendering and only serves as a raw container.
+/// A widget that paints a colored rectangle with rounded corners.
 #[derive(Debug)]
-pub struct Container;
-impl Widget for Container {
+pub struct Pane;
+impl Widget for Pane {
 
-    fn render_self(&self, style: &Style, canvas_size: Vec2, p: &mut Painter) {
+    fn render_self(&self, style: &Style, canvas_size: Vec2, painter: &mut Painter) {
 
-        // "Push" painter state.
-        let color = p.color;
-        p.color = style.color;
+        // "Pushes" painter state.
+        let color = painter.color;
+        painter.color = style.color;
 
-        // Get radiuses and centers of the corner circles.
+        // Gets radiuses and centers of the corner circles.
+        let half_extent = (canvas_size / 2.0).min_element();
         let Corners { top_left, top_right, bottom_right, bottom_left } = style.corners;
+        let top_left = top_left.min(half_extent);
+        let top_right = top_right.min(half_extent);
+        let bottom_right = bottom_right.min(half_extent);
+        let bottom_left = bottom_left.min(half_extent);
         let c_br = Vec2::new(canvas_size.x - bottom_right, canvas_size.y - bottom_right);
         let c_bl = Vec2::new(bottom_left, canvas_size.y - bottom_left);
         let c_tl = Vec2::new(top_left, top_left);
         let c_tr = Vec2::new(canvas_size.x - top_right, top_right);
         
         // Paints with shape painter.
-        let mut sp = p.shape();
-        sp.quarter_circle(c_br, bottom_right, 0.0);
-        sp.quarter_circle(c_bl, bottom_left, FRAC_PI_2);
-        sp.quarter_circle(c_tl, top_left, PI);
-        sp.quarter_circle(c_tr, top_right, 3.0 * FRAC_PI_2);
-        drop(sp);
+        painter.shape()
+            .quarter_circle(c_br, bottom_right, 0.0)
+            .quarter_circle(c_bl, bottom_left, FRAC_PI_2)
+            .quarter_circle(c_tl, top_left, PI)
+            .quarter_circle(c_tr, top_right, 3.0 * FRAC_PI_2);
 
-        // "Pop" painter state.
-        p.color = color;
+        // "Pops" painter state.
+        painter.color = color;
     }
 }
 

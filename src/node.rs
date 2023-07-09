@@ -1,7 +1,7 @@
 use std::any::TypeId;
 
 use slotmap::new_key_type;
-use crate::{Style, Widget, Container, Rect};
+use crate::{Style, Widget, Pane, Rect};
 
 new_key_type! {
     /// ID of a [`Node`]
@@ -22,7 +22,7 @@ impl Default for Node {
     fn default() -> Self {
         Self {
             style: Default::default(),
-            widget: Box::new(Container),
+            widget: Box::new(Pane),
             tag: Default::default(),
             children_ids: Vec::new(),
             parent_id: None,

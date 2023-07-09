@@ -1,4 +1,4 @@
-use another_rust_ui::{App, Gui, Node, Style, Container, Color, Val, Layout, Corners};
+use another_rust_ui::{App, Gui, Node, Style, Pane, Color, Val, Layout, Corners};
 use glam::Vec2;
 
 const WINDOW_WIDTH: u32 = 512;
@@ -21,7 +21,7 @@ fn make_gui() -> Gui {
             },
             ..Default::default()
         },
-        Container
+        Pane
     );
 
     let blue = Node::tagged(
@@ -33,19 +33,19 @@ fn make_gui() -> Gui {
             height: Val::Px(64.0),
             ..Default::default()
         },
-        Container
+        Pane
     );
 
     let green = Node::tagged(
         "green",
         Style {
             color: Color::GREEN,
-            corners: Corners::all(10.0),
-            width: Val::Px(64.0),
+            corners: Corners::all(1000.0),
+            width: Val::Px(128.0),
             height: Val::Px(64.0),
             ..Default::default()
         },
-        Container
+        Pane
     );
 
     let gui_size = Vec2::new(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32);
