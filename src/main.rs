@@ -1,11 +1,13 @@
-use another_rust_ui::{App, Gui, Node, Style, Container, Color};
+use another_rust_ui::{App, Gui, Node, Style, Container, Color, Val, Layout, Corners};
 use glam::Vec2;
 
 const WINDOW_WIDTH: u32 = 512;
 const WINDOW_HEIGHT: u32 = 512;
 
 fn main() {
-    App::new(make_gui(), WINDOW_WIDTH, WINDOW_HEIGHT).start();
+    let mut app = App::new(make_gui(), WINDOW_WIDTH, WINDOW_HEIGHT);
+    // app.debug = true;
+    app.start();
 }
 
 
@@ -14,6 +16,9 @@ fn make_gui() -> Gui {
         "root",
         Style {
             color: Color::RED,
+            layout: Layout {
+                ..Default::default()
+            },
             ..Default::default()
         },
         Container
@@ -23,6 +28,21 @@ fn make_gui() -> Gui {
         "blue",
         Style {
             color: Color::BLUE,
+            corners: Corners::all(10.0),
+            width: Val::Px(64.0),
+            height: Val::Px(64.0),
+            ..Default::default()
+        },
+        Container
+    );
+
+    let green = Node::tagged(
+        "green",
+        Style {
+            color: Color::GREEN,
+            corners: Corners::all(10.0),
+            width: Val::Px(64.0),
+            height: Val::Px(64.0),
             ..Default::default()
         },
         Container
@@ -31,6 +51,7 @@ fn make_gui() -> Gui {
     let gui_size = Vec2::new(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32);
     let (root_id, mut gui) = Gui::new(root, gui_size);
     let _blue_id = gui.insert(blue, root_id).unwrap();
+    let _green_id = gui.insert(green, root_id).unwrap();
 
     gui
 }

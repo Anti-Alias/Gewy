@@ -109,30 +109,6 @@ impl Gui {
         self.compute_region(self.root_id);
     }
 
-    pub(crate) fn paint(&mut self, painter: &mut Painter) {
-        self.paint_node(self.root_id, painter);
-    }
-
-    fn paint_node(&mut self, node_id: NodeId, painter: &mut Painter) {
-        
-        // Unpacks node
-        let node = self.get(node_id).unwrap();
-        let widget = &node.widget;
-        let style = &node.style;
-
-        // Paints widget
-        painter.translation = node.cache.region.pos;
-        widget.render_self(style, node.cache.region.size, painter);
-
-        // Renders children of node
-        let children: &[NodeId] = unsafe {
-            std::mem::transmute(node.children())
-        };
-        for child_id in children {
-            self.paint_node(*child_id, painter);
-        }
-    }
-
     fn compute_region<'a>(&'a mut self, node_id: NodeId) {
         
         // Gets children of node
@@ -165,18 +141,18 @@ impl Gui {
 
         // Growing scenario
         if basis_total <= parent_size.x {
-            self.grow_children(node_ids, basis_total, parent_size, parent_layout);
+            self.grow_children(node_ids, basis_total, parent_size, parent_layout, is_row);
             for id in node_ids {
                 let node = self.get_mut(*id).unwrap();
                 node.cache.region = node.cache.region.flip(!is_row);
-                node.cache.region.pos += parent_region.pos;              
+                node.cache.region.pos += parent_region.pos;
                 self.compute_region(*id);
             }
         }
 
         // Shrinking scenario
         else {
-            unimplemented!("Shrinking not yet supported");
+            log::warn!("Shrinking not yet supported");
         }
     }
 
@@ -185,7 +161,8 @@ impl Gui {
         node_ids: &[NodeId],
         basis_total: f32,
         parent_size: Vec2,
-        parent_layout: Layout
+        parent_layout: Layout,
+        is_row: bool
     ) {
 
         // Computes the total growth of all the nodes
@@ -203,7 +180,7 @@ impl Gui {
             let node = self.get_mut(*id).unwrap();
             let grow_perc = node.style.config.grow / grow_total;
             let node_width = node.cache.basis + remaining_width * grow_perc;
-            let node_height = parent_size.y;
+            let node_height = node.style.get_height(parent_size.y, is_row);
             node.cache.region = Rect::new(
                 Vec2::new(total_width, 0.0),
                 Vec2::new(node_width, node_height)
@@ -224,6 +201,30 @@ impl Gui {
             let node = self.get_mut(*id).unwrap();
             node.cache.region.pos += offset;
             node.cache.region.pos += (i as f32) * spacing;
+        }
+    }
+
+    pub(crate) fn paint(&mut self, painter: &mut Painter) {
+        self.paint_node(self.root_id, painter);
+    }
+
+    fn paint_node(&mut self, node_id: NodeId, painter: &mut Painter) {
+        
+        // Unpacks node
+        let node = self.get(node_id).unwrap();
+        let widget = &node.widget;
+        let style = &node.style;
+
+        // Paints widget
+        painter.translation = node.cache.region.pos;
+        widget.render_self(style, node.cache.region.size, painter);
+
+        // Renders children of node
+        let children: &[NodeId] = unsafe {
+            std::mem::transmute(node.children())
+        };
+        for child_id in children {
+            self.paint_node(*child_id, painter);
         }
     }
 }

@@ -4,6 +4,7 @@ use crate::Color;
 pub struct Style {
     pub width: Val,
     pub height: Val,
+    pub corners: Corners,
     pub color: Color,
     pub margin: Margin,
     pub padding: Padding,
@@ -12,14 +13,27 @@ pub struct Style {
 }
 
 impl Style {
-    pub fn get_basis(&self, parent_width: f32, is_row: bool) -> f32 {
+    pub fn get_width(&self, parent_width: f32, is_row: bool) -> f32 {
         let width = if is_row { self.width } else { self.height };
-        match (self.config.basis, width) {
-            (Val::Px(px), _) => px,
-            (Val::Pc(pc), _) => pc * parent_width,
-            (Val::Auto, Val::Px(px)) => px,
-            (Val::Auto, Val::Pc(pc)) => pc * parent_width,
-            (Val::Auto, Val::Auto) => parent_width
+        match width {
+            Val::Px(px) => px,
+            Val::Pc(pc) => pc * parent_width,
+            Val::Auto => parent_width
+        }
+    }
+    pub fn get_height(&self, parent_height: f32, is_row: bool) -> f32 {
+        let height = if is_row { self.height } else { self.width };
+        match height {
+            Val::Px(px) => px,
+            Val::Pc(pc) => pc * parent_height,
+            Val::Auto => parent_height
+        }
+    }
+    pub fn get_basis(&self, parent_width: f32, is_row: bool) -> f32 {
+        match self.config.basis {
+            Val::Px(px) => px,
+            Val::Pc(pc) => parent_width * pc,
+            Val::Auto => self.get_width(parent_width, is_row)
         }
     }
 }
@@ -64,6 +78,23 @@ impl Padding {
     }
 }
 
+/// Corner radiuses
+#[derive(Copy, Clone, PartialEq, Default, Debug)]
+pub struct Corners {
+    pub top_left: f32,
+    pub top_right: f32,
+    pub bottom_right: f32,
+    pub bottom_left: f32
+}
+
+impl Corners {
+    pub fn new(top_left: f32, top_right: f32, bottom_right: f32, bottom_left: f32) -> Corners {
+        Corners { top_left, top_right, bottom_right, bottom_left }
+    }
+    pub fn all(all: f32) -> Self {
+        Corners { top_left: all, top_right: all, bottom_right: all, bottom_left: all }
+    }
+}
 
 /// Flexbox layout for a container.
 #[derive(Copy, Clone, PartialEq, Debug, Default)]
@@ -90,7 +121,7 @@ impl Direction {
         self == Self::RowReverse || self == Self::ColumnReverse
     }
     pub fn is_row(self) -> bool {
-        self == Self::Column || self == Self::ColumnReverse
+        self == Self::Row || self == Self::RowReverse
     }
 }
 

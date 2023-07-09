@@ -1,15 +1,22 @@
-use wgpu::{*, util::{DeviceExt, BufferInitDescriptor}};
+use wgpu::*;
+use wgpu::util::{DeviceExt, BufferInitDescriptor};
 use crate::{Color, write_to_buffer, View};
 use glam::Vec2;
-use std::mem::size_of;
+use std::{mem::size_of, f32::consts::TAU, fmt::Debug};
 use bytemuck::{Pod, Zeroable};
 
 
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, PartialEq, Default, Debug)]
 pub struct Vertex {
-    pub position: [f32; 2],
-    pub color: [f32; 4]
+    pub position: Vec2,
+    pub color: Color
+}
+
+impl Vertex {
+    pub fn new(position: Vec2, color: Color) -> Self {
+        Self { position, color, }
+    }
 }
 
 impl Vertex {
@@ -37,10 +44,10 @@ impl Vertex {
 }
 
 /// A mesh of colored vertices.
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default)]
 pub struct Mesh {
     pub vertices: Vec<Vertex>,
-    pub indices: Vec<u16>
+    pub indices: Vec<u32>
 }
 
 impl Mesh {
@@ -61,7 +68,7 @@ impl Mesh {
             contents: bytemuck::cast_slice(vertices),
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST
         });
-        let indices: &[u16] = &self.indices;
+        let indices: &[u32] = &self.indices;
         let indices = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Mesh Indices"),
             contents: bytemuck::cast_slice(indices),
@@ -89,20 +96,20 @@ pub struct GpuMesh {
 pub type Point = [f32; 2];
 
 /// Painter that helps write vertices to a [`Mesh`] in a more structured and controlled way.
-pub struct Painter<'m> {
+pub struct Painter {
     pub translation: Vec2,
     pub color: Color,
-    mesh: &'m mut Mesh,
-    index: u16
+    mesh: Mesh,
+    index: u32
 }
 
-impl<'m> Painter<'m> {
+impl Painter {
     
-    pub fn new(mesh: &'m mut Mesh) -> Self {
+    pub(crate) fn new(mesh: Mesh) -> Self {
         Self {
-            mesh,
             translation: Vec2::ZERO,
             color: Color::WHITE,
+            mesh,
             index: 0
         }
     }
@@ -114,13 +121,43 @@ impl<'m> Painter<'m> {
         self.index += 3;
     }
 
-    pub fn rect(&mut self, x: f32, y: f32, width: f32, height: f32) {
+    pub fn rect(&mut self, position: Vec2, size: Vec2) {
+        let p = position;
         self.quad([
-            Vec2::new(x, y),
-            Vec2::new(x + width, 0.0),
-            Vec2::new(x + width, y + height),
-            Vec2::new(x, y + height),
+            Vec2::new(p.x, p.y),
+            Vec2::new(p.x + size.x, p.y),
+            Vec2::new(p.x + size.x, p.y + size.y),
+            Vec2::new(p.x, p.y + size.y)
         ]);
+    }
+
+    pub fn circle(&mut self, center: Vec2, radius: f32) {
+
+        let num_verts = radius_to_vertex_count(radius);
+        if num_verts < 3 { return }
+        let num_indices = num_verts * 3 - 6;
+
+        self.mesh.vertices.reserve(num_verts as usize);
+        self.mesh.indices.reserve(num_indices as usize);
+        
+        // Writes vertices
+        for i in 0..num_verts {
+            let radians = TAU * i as f32 / num_verts as f32;
+            let position = Vec2::from_angle(radians) * radius + center;
+            self.mesh.vertices.push(Vertex {
+                position: position + self.translation,
+                color: self.color,
+            });
+        }
+
+        // Writes indices
+        for i in 1..num_verts-1 {
+            self.mesh.indices.push(self.index);
+            self.mesh.indices.push(self.index + i);
+            self.mesh.indices.push(self.index + i + 1);
+        }
+
+        self.index += num_verts;
     }
 
     pub fn quad(&mut self, points: [Vec2; 4]) {
@@ -130,18 +167,91 @@ impl<'m> Painter<'m> {
         self.index += 4;
     }
 
+    pub(crate) fn flush(&mut self, device: &Device, queue: &Queue, gpu_mesh: &mut GpuMesh) {
+        self.mesh.write_to_gpu(device, queue, gpu_mesh);
+        self.mesh.clear();
+        self.index = 0;
+    }
+
+    /// Creates a shape that references this painter.
+    /// Useful for drawing complex shapes with a fan stemming from the first point specified.
+    pub fn shape(&mut self) -> ShapePainter<'_> {
+        ShapePainter { painter: self }
+    }
+
     fn to_vertices<const N: usize>(&self, points: [Vec2; N]) -> [Vertex; N] {
-        let t = self.translation;
-        points.map(|p| {
-            Vertex {
-                position: [p[0] + t.x, p[1] + t.y],
-                color: self.color.into()
-            }
-        })
+        points.map(|point| Vertex::new(point + self.translation, self.color))
     }
 }
 
-pub(crate) fn create_pipeline(device: &Device, texture_format: TextureFormat) -> RenderPipeline {
+/// Paints a fan. Will connect point[N] with point[1] if connected is specified.
+pub struct ShapePainter<'p> {
+    painter: &'p mut Painter
+}
+
+impl<'p> ShapePainter<'p> {
+    pub fn vertex(&mut self, mut v: Vertex) {
+        v.position += self.painter.translation;
+        self.painter.mesh.vertices.push(v);
+    }
+    pub fn vertices<const N: usize>(&mut self, vertices: [Vertex; N]) {
+        let t = self.painter.translation;
+        let vertices = vertices.map(|mut v| { v.position += t; v });
+        self.painter.mesh.vertices.extend(vertices);
+    }
+    pub fn point(&mut self, point: Vec2) {
+        self.vertex(Vertex { position: point, color: self.painter.color });
+    }
+    pub fn points<const N: usize>(&mut self, points: [Vec2; N]) {
+        let vertices = points.map(|point| Vertex { position: point, color: self.painter.color });
+        self.vertices(vertices);
+    }
+    pub fn quarter_circle(&mut self, center: Vec2, radius: f32, radians_offset: f32) {
+        let circle_vertex_count = radius_to_vertex_count(radius);
+        if circle_vertex_count < 3 {
+            self.point(center);
+            return;
+        }
+        let vertex_count = circle_vertex_count / 4 + 1;
+        if vertex_count == 0 { return }
+        let circle_vertex_count = circle_vertex_count as f32;
+        for i in 0..vertex_count {
+            let i = i as f32;
+            let radians = TAU * i / circle_vertex_count;
+            let point = center + Vec2::from_angle(radians + radians_offset) * radius;
+            self.point(point);
+        }
+    }
+}
+
+impl<'p> Drop for ShapePainter<'p> {
+    fn drop(&mut self) {
+
+        // Determines the number of vertices already written
+        let mesh = &mut self.painter.mesh;
+        let vertices_added = {
+            let vertex_count = mesh.vertices.len() as u32;
+            let vertices_added = vertex_count - self.painter.index;
+            if vertices_added == 0 { return }
+            if vertices_added < 3 {
+                panic!("ConvexPainter wrote {vertices_added} vertices.");
+            }
+            vertices_added
+        };
+
+        // Writes indices
+        let indices_to_add = vertices_added * 3 - 6;
+        mesh.indices.reserve(indices_to_add as usize);
+        for i in 1..vertices_added-1 {
+            mesh.indices.push(self.painter.index);
+            mesh.indices.push(self.painter.index + i);
+            mesh.indices.push(self.painter.index + i + 1);
+        }
+        self.painter.index += vertices_added;
+    }
+}
+
+pub(crate) fn create_pipeline(device: &Device, texture_format: TextureFormat, debug: bool) -> RenderPipeline {
     let shader_source = include_str!("shader.wgsl");
     let shader_module = device.create_shader_module(ShaderModuleDescriptor {
         label: Some("Shader"),
@@ -154,6 +264,8 @@ pub(crate) fn create_pipeline(device: &Device, texture_format: TextureFormat) ->
         ],
         push_constant_ranges: &[],
     });
+
+    let polygon_mode = if debug { PolygonMode::Line } else { PolygonMode::Fill };
     device.create_render_pipeline(&RenderPipelineDescriptor {
         label: Some("Render Pipeline"),
         vertex: VertexState {
@@ -170,10 +282,18 @@ pub(crate) fn create_pipeline(device: &Device, texture_format: TextureFormat) ->
                 write_mask: ColorWrites::ALL
             })]
         }),
-        primitive: PrimitiveState::default(),
+        primitive: PrimitiveState {
+            polygon_mode,
+            ..Default::default()
+        },
         multiview: None,
         layout: Some(&layout),
         depth_stencil: None,
         multisample: MultisampleState::default()
     })
+}
+
+
+fn radius_to_vertex_count(radius: f32) -> u32 {
+    radius as u32
 }

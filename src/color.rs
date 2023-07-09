@@ -1,6 +1,10 @@
 use std::ops::{Add, Sub, Mul, Div};
 
-#[derive(Copy, Clone, PartialEq, Default, Debug)]
+use bytemuck::{Pod, Zeroable};
+
+
+#[repr(C)]
+#[derive(Pod, Zeroable, Copy, Clone, PartialEq, Default, Debug)]
 pub struct Color { r: f32, g: f32, b: f32, a: f32 }
 impl Color {
     pub const BLACK: Color = Color::new(0.0, 0.0, 0.0, 1.0);
