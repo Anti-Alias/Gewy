@@ -6,7 +6,7 @@ const WINDOW_HEIGHT: u32 = 512;
 
 fn main() {
     let mut app = App::new(make_gui(), WINDOW_WIDTH, WINDOW_HEIGHT);
-    // app.debug = true;
+    //app.debug = true;
     app.start();
 }
 
@@ -16,6 +16,7 @@ fn make_gui() -> Gui {
         "root",
         Style {
             color: Color::RED,
+            corners: Corners::all(10.0),
             layout: Layout {
                 ..Default::default()
             },
@@ -28,7 +29,7 @@ fn make_gui() -> Gui {
         "blue",
         Style {
             color: Color::BLUE,
-            corners: Corners::all(10.0),
+            corners: Corners::all(4.0),
             width: Val::Px(64.0),
             height: Val::Px(64.0),
             ..Default::default()

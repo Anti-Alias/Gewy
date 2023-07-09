@@ -2,6 +2,7 @@ use wgpu::*;
 use wgpu::util::{DeviceExt, BufferInitDescriptor};
 use crate::{Color, write_to_buffer, View};
 use glam::Vec2;
+use std::f32::consts::FRAC_PI_2;
 use std::{mem::size_of, f32::consts::TAU, fmt::Debug};
 use bytemuck::{Pod, Zeroable};
 
@@ -214,16 +215,16 @@ impl<'p> ShapePainter<'p> {
         self.vertices(vertices);
     }
     pub fn quarter_circle(&mut self, center: Vec2, radius: f32, radians_offset: f32) -> &mut Self {
-        let circle_vertex_count = radius_to_vertex_count(radius);
-        if circle_vertex_count < 3 {
+        let vertex_count = radius_to_quarter_vertex_count(radius);
+        if vertex_count < 2 {
             self.point(center);
             return self;
         }
-        let vertex_count = circle_vertex_count / 4 + 1;
-        let circle_vertex_count = circle_vertex_count as f32;
+        let divisor = (vertex_count - 1) as f32;
         for i in 0..vertex_count {
             let i = i as f32;
-            let radians = TAU * i / circle_vertex_count;
+            let ratio = i as f32 / divisor;
+            let radians = FRAC_PI_2 * ratio;
             let point = center + Vec2::from_angle(radians + radians_offset) * radius;
             self.point(point);
         }
@@ -258,7 +259,7 @@ impl<'p> Drop for ShapePainter<'p> {
     }
 }
 
-pub(crate) fn create_pipeline(device: &Device, texture_format: TextureFormat, debug: bool) -> RenderPipeline {
+pub(crate) fn create_pipeline(device: &Device, texture_format: TextureFormat, debug: bool, samples_per_pixel: u32) -> RenderPipeline {
     let shader_source = include_str!("shader.wgsl");
     let shader_module = device.create_shader_module(ShaderModuleDescriptor {
         label: Some("Shader"),
@@ -296,11 +297,19 @@ pub(crate) fn create_pipeline(device: &Device, texture_format: TextureFormat, de
         multiview: None,
         layout: Some(&layout),
         depth_stencil: None,
-        multisample: MultisampleState::default()
+        multisample: MultisampleState {
+            count: samples_per_pixel,
+            ..Default::default()
+        }
     })
 }
 
-
 fn radius_to_vertex_count(radius: f32) -> u32 {
-    radius as u32
+    let scaled = radius.powf(0.8);
+    scaled as u32 + 8
+}
+
+fn radius_to_quarter_vertex_count(radius: f32) -> u32 {
+    let scaled = radius.powf(0.8);
+    (scaled / 4.0 ) as u32 + 8
 }

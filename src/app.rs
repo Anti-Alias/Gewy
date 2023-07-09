@@ -11,20 +11,27 @@ pub struct App {
     pub width: u32,
     pub height: u32,
     pub gui: Gui,
-    pub debug: bool
+    pub debug: bool,
+    pub samples_per_pixel: u32
 }
 
 /// Stores the application in a window.
 impl App {
     /// Starts the application in a window with the resolution specified.
     pub fn new(gui: Gui, width: u32, height: u32) -> Self {
-        Self { width, height, gui, debug: false }
+        Self {
+            width,
+            height,
+            gui,
+            debug: false,
+            samples_per_pixel: 4
+        }
     }
 
     pub fn start(self) -> ! {
         
-        // Opens window and handle high-level event
-        let Self { width, height, mut gui, debug } = self;
+        // Opens window and handle high-level events
+        let Self { width, height, mut gui, debug, samples_per_pixel } = self;
         let size = PhysicalSize::new(width, height);
         gui.resize(Vec2::new(size.width as f32, size.height as f32));
         let event_loop = EventLoop::new();
@@ -32,7 +39,7 @@ impl App {
             .with_inner_size(size)
             .build(&event_loop)
             .unwrap();
-        let mut state = pollster::block_on(State::new(window, gui, debug));
+        let mut state = pollster::block_on(State::new(window, gui, debug, samples_per_pixel));
 
         // Runs event loop
         event_loop.run(move |event, _, flow| {
@@ -91,21 +98,35 @@ struct State {
     painter: Painter,
     gpu_mesh: GpuMesh,
     view: View,
-    gpu_view: GpuView
+    gpu_view: GpuView,
+    msaa_texture_view: Option<TextureView>,
+    samples_per_pixel: u32
 }
 
 impl State {
+
+    fn print_format_features(adapter: &Adapter, format: TextureFormat) {
+        let features = adapter.get_texture_format_features(format);
+        let flags = features.flags;
+        println!(
+            "{format:?}: 1x: {}, 2x: {}, 4x: {}, 8x: {}",
+            flags.sample_count_supported(1),
+            flags.sample_count_supported(2),
+            flags.sample_count_supported(4),
+            flags.sample_count_supported(8)
+        );
+    }
     
-    async fn new(window: Window, gui: Gui, debug: bool) -> Self {
+    async fn new(window: Window, gui: Gui, debug: bool, samples_per_pixel: u32) -> Self {
        
         // WGPU instance
         let mut features = Features::empty();
         if debug { features |= Features::POLYGON_MODE_LINE }
 
-        let size = window.inner_size();
+        let window_size = window.inner_size();
         let instance = Instance::new(InstanceDescriptor {
-            //backends: Backends::all(),
-            backends: Backends::VULKAN,
+            backends: Backends::all(),
+            //backends: Backends::VULKAN,
             ..Default::default()
         });
         
@@ -138,16 +159,18 @@ impl State {
         let config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
-            width: size.width,
-            height: size.height,
+            width: window_size.width,
+            height: window_size.height,
             present_mode: PresentMode::Fifo,
             alpha_mode: CompositeAlphaMode::Opaque,
             view_formats: vec![],
         };
         surface.configure(&device, &config);
 
+        Self::print_format_features(&adapter, surface_format);
+
         // Builds render pipeline
-        let render_pipeline = create_pipeline(&device, surface_format, debug);
+        let render_pipeline = create_pipeline(&device, surface_format, debug, samples_per_pixel);
 
         // Creates a mesh/gpu mesh.
         let mesh = Mesh::new();
@@ -155,11 +178,31 @@ impl State {
         let painter = Painter::new(mesh);
 
         // Creates view
-        let view = View::from_physical_size(size);
+        let view = View::from_physical_size(window_size);
         let gpu_view = view.to_gpu(&device);
 
+        let msaa_texture = if samples_per_pixel == 0 { None } else {
+            Self::create_msaa_texture_view(&device, window_size, surface_format, samples_per_pixel);
+            None
+        };
+
         // Done
-        Self { window, surface, device, queue, config, size, render_pipeline, gui, painter, gpu_mesh, view, gpu_view }
+        Self {
+            window,
+            surface,
+            device,
+            queue,
+            config,
+            size: window_size,
+            render_pipeline,
+            gui,
+            painter,
+            gpu_mesh,
+            view,
+            gpu_view,
+            msaa_texture_view: msaa_texture,
+            samples_per_pixel
+        }
     }
 
     pub fn window(&self) -> &Window { &self.window }
@@ -174,6 +217,9 @@ impl State {
         }
         self.view = View::from_physical_size(new_size);
         self.view.write_to_gpu(&self.device, &self.queue, &mut self.gpu_view);
+        if self.samples_per_pixel != 1 {
+            self.msaa_texture_view = Some(Self::create_msaa_texture_view(&self.device, self.size, self.config.format, self.samples_per_pixel));
+        }
     }
 
     fn input(&mut self, _event: &WindowEvent) -> bool {
@@ -198,16 +244,31 @@ impl State {
         let mut encoder = self.device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("Render Encoder"),
         });
-        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-            label: Some("Render Pass"),
-            color_attachments: &[Some(RenderPassColorAttachment {
+
+        let color_attachment = if let Some(msaa_texture_view) = &self.msaa_texture_view {
+            RenderPassColorAttachment {
+                view: &msaa_texture_view,
+                resolve_target: Some(&tex_view),
+                ops: Operations {
+                    load: LoadOp::Clear(Color::BLACK.into()),
+                    store: true
+                },
+            }
+        }
+        else {
+            RenderPassColorAttachment {
                 view: &tex_view,
                 resolve_target: None,
                 ops: Operations {
                     load: LoadOp::Clear(Color::BLACK.into()),
                     store: true
                 },
-            })],
+            }
+        };
+
+        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+            label: Some("Render Pass"),
+            color_attachments: &[Some(color_attachment)],
             depth_stencil_attachment: None
         });
         render_pass.set_pipeline(&self.render_pipeline);
@@ -221,5 +282,20 @@ impl State {
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
         Ok(())
+    }
+
+    fn create_msaa_texture_view(device: &Device, size: PhysicalSize<u32>, format: TextureFormat, samples_per_pixel: u32) -> TextureView {
+        device
+            .create_texture(&TextureDescriptor {
+                label: Some("MSAA Texture"),
+                size: Extent3d { width: size.width, height: size.height, depth_or_array_layers: 1 },
+                mip_level_count: 1,
+                sample_count: samples_per_pixel,
+                dimension: TextureDimension::D2,
+                format,
+                usage: TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[format]
+            })
+            .create_view(&TextureViewDescriptor::default())
     }
 }
