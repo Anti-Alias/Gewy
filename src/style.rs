@@ -1,4 +1,6 @@
-use crate::Color;
+use glam::Vec2;
+
+use crate::{Color, RawCorners};
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Style {
@@ -13,7 +15,7 @@ pub struct Style {
 }
 
 impl Style {
-    pub fn get_width(&self, parent_width: f32, is_row: bool) -> f32 {
+    pub(crate) fn raw_width(&self, parent_width: f32, is_row: bool) -> f32 {
         let width = if is_row { self.width } else { self.height };
         match width {
             Val::Px(px) => px,
@@ -21,10 +23,7 @@ impl Style {
             Val::Auto => parent_width
         }
     }
-    pub fn get_height(&self, is_row: bool) -> Val {
-        if is_row { self.height } else { self.width }
-    }
-    pub fn get_effective_height(&self, parent_height: f32, is_row: bool) -> f32 {
+    pub(crate) fn raw_height(&self, parent_height: f32, is_row: bool) -> f32 {
         let height = if is_row { self.height } else { self.width };
         match height {
             Val::Px(px) => px,
@@ -32,20 +31,22 @@ impl Style {
             Val::Auto => parent_height
         }
     }
-    pub fn get_basis(&self, parent_width: f32, is_row: bool) -> f32 {
+    pub(crate) fn raw_basis(&self, parent_width: f32, is_row: bool) -> f32 {
         match self.config.basis {
             Val::Px(px) => px,
-            Val::Pc(pc) => parent_width * pc,
-            Val::Auto => self.get_width(parent_width, is_row)
+            Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_width,
+            Val::Auto => self.raw_width(parent_width, is_row)
         }
     }
-
-    pub fn scaled(&self, scale: f32) -> Self {
-        let mut result = self.clone();
-        result.margin = result.margin.scaled(scale);
-        result.padding = result.padding.scaled(scale);
-        result.corners = result.corners.scaled(scale);
-        result
+    pub(crate) fn raw_corners(&self, parent_size: Vec2) -> RawCorners {
+        let parent_size = parent_size.min_element();
+        let corners = &self.corners;
+        RawCorners {
+            top_left: corners.top_left.to_raw(parent_size),
+            top_right: corners.top_left.to_raw(parent_size),
+            bottom_right: corners.top_left.to_raw(parent_size),
+            bottom_left: corners.top_left.to_raw(parent_size)
+        }
     }
 }
 
@@ -54,11 +55,21 @@ impl Style {
 pub enum Val {
     /// Pixels
     Px(f32),
-    /// Percent (0.0 - 1.0) of a value sourced elsewhere.
+    /// Percent (0.0 - 1.0) of a parent's value.
     Pc(f32),
     /// Sourced from a value elsewhere.
     #[default]
     Auto
+}
+
+impl Val {
+    pub fn to_raw(self, parent: f32) -> f32 {
+        match self {
+            Self::Px(px) => px,
+            Self::Pc(pc) => parent * pc,
+            Self::Auto => parent
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
@@ -108,26 +119,18 @@ impl Padding {
 /// Corner radiuses
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
 pub struct Corners {
-    pub top_left: f32,
-    pub top_right: f32,
-    pub bottom_right: f32,
-    pub bottom_left: f32
+    pub top_left: Val,
+    pub top_right: Val,
+    pub bottom_right: Val,
+    pub bottom_left: Val
 }
 
 impl Corners {
-    pub fn new(top_left: f32, top_right: f32, bottom_right: f32, bottom_left: f32) -> Corners {
+    pub fn new(top_left: Val, top_right: Val, bottom_right: Val, bottom_left: Val) -> Corners {
         Corners { top_left, top_right, bottom_right, bottom_left }
     }
-    pub fn all(all: f32) -> Self {
+    pub fn all(all: Val) -> Self {
         Corners { top_left: all, top_right: all, bottom_right: all, bottom_left: all }
-    }
-    pub fn scaled(self, scale: f32) -> Self {
-        Self {
-            top_left: self.top_left * scale,
-            top_right: self.top_right * scale,
-            bottom_right: self.bottom_right * scale,
-            bottom_left: self.bottom_left * scale,
-        }
     }
 }
 

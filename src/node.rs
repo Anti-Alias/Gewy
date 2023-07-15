@@ -1,7 +1,5 @@
-use std::any::TypeId;
-
 use slotmap::new_key_type;
-use crate::{Style, Widget, Pane, Rect};
+use crate::{Style, Widget, Pane, Raw};
 
 new_key_type! {
     /// ID of a [`Node`]
@@ -15,7 +13,7 @@ pub struct Node {
     pub(crate) tag: Tag,
     pub(crate) children_ids: Vec<NodeId>,
     pub(crate) parent_id: Option<NodeId>,
-    pub(crate) cache: Cache
+    pub(crate) raw: Raw
 }
 
 impl Default for Node {
@@ -26,7 +24,7 @@ impl Default for Node {
             tag: Default::default(),
             children_ids: Vec::new(),
             parent_id: None,
-            cache: Default::default()
+            raw: Default::default()
         }
     }
 }
@@ -98,29 +96,4 @@ impl From<usize> for Tag {
     fn from(value: usize) -> Self {
         Self::Index(value)
     }
-}
-
-
-/// A reference to a [`Node`] alongside it's id.
-#[derive(Debug)]
-pub struct NodeInfo<'n> {
-    pub node: &'n mut Node,
-    pub id: NodeId
-}
-
-// Path to a single node with the first element being the root node and the last being the node in question.
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct NodePath(pub(crate) Vec<NodePathElem>);
-
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub(crate) struct NodePathElem {
-    pub(crate) id: NodeId,          // ID of the node
-    pub(crate) tag: Tag,            // Tag of the node
-    pub(crate) widget_type: TypeId  // Widget type of the node
-}
-
-#[derive(Copy, Clone, PartialEq, Default, Debug)]
-pub(crate) struct Cache {
-    pub region: Rect,
-    pub basis: f32
 }
