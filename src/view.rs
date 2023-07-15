@@ -1,7 +1,6 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{Mat4, Vec3};
+use glam::{Mat4, Vec3, Vec2};
 use wgpu::{*, util::{BufferInitDescriptor, DeviceExt}};
-use winit::dpi::PhysicalSize;
 
 use crate::write_to_buffer;
 
@@ -14,14 +13,16 @@ pub struct View {
 
 impl View {
 
-    pub fn from_physical_size(size: PhysicalSize<u32>) -> Self {
-        let hw = size.width as f32 / 2.0;
-        let hh = size.height as f32 / 2.0;
+    pub fn new(size: Vec2, translation: Vec2, scale: f32) -> Self {
+        let hw = size.x / 2.0;
+        let hh = size.y as f32 / 2.0;
         let proj_view =
             Mat4::orthographic_rh(-hw, hw, -hh, hh, 0.0, 1.0) *
             Mat4::from_scale(Vec3::new(1.0, -1.0, 1.0)) *
+            Mat4::from_translation(translation.extend(0.0)) *
+            Mat4::from_scale(Vec3::new(scale, scale, scale)) *
             Mat4::from_translation(Vec3::new(-hw, -hh, 0.0));
-        Self { proj_view }
+        Self { proj_view }        
     }
 
     pub fn create_layout(device: &Device) -> BindGroupLayout {

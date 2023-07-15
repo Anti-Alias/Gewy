@@ -4,10 +4,10 @@ use crate::Color;
 pub struct Style {
     pub width: Val,
     pub height: Val,
-    pub corners: Corners,
     pub color: Color,
     pub margin: Margin,
     pub padding: Padding,
+    pub corners: Corners,
     pub layout: Layout,
     pub config: Config
 }
@@ -17,15 +17,18 @@ impl Style {
         let width = if is_row { self.width } else { self.height };
         match width {
             Val::Px(px) => px,
-            Val::Pc(pc) => pc * parent_width,
+            Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_width,
             Val::Auto => parent_width
         }
     }
-    pub fn get_height(&self, parent_height: f32, is_row: bool) -> f32 {
+    pub fn get_height(&self, is_row: bool) -> Val {
+        if is_row { self.height } else { self.width }
+    }
+    pub fn get_effective_height(&self, parent_height: f32, is_row: bool) -> f32 {
         let height = if is_row { self.height } else { self.width };
         match height {
             Val::Px(px) => px,
-            Val::Pc(pc) => pc * parent_height,
+            Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_height,
             Val::Auto => parent_height
         }
     }
@@ -35,6 +38,14 @@ impl Style {
             Val::Pc(pc) => parent_width * pc,
             Val::Auto => self.get_width(parent_width, is_row)
         }
+    }
+
+    pub fn scaled(&self, scale: f32) -> Self {
+        let mut result = self.clone();
+        result.margin = result.margin.scaled(scale);
+        result.padding = result.padding.scaled(scale);
+        result.corners = result.corners.scaled(scale);
+        result
     }
 }
 
@@ -62,6 +73,14 @@ impl Margin {
     pub fn new(top: f32, right: f32, bottom: f32, left: f32) -> Self {
         Self { top, right, bottom, left }
     }
+    pub fn scaled(self, scale: f32) -> Self {
+        Self {
+            top: self.top * scale,
+            right: self.right * scale,
+            bottom: self.bottom * scale,
+            left: self.left * scale
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
@@ -75,6 +94,14 @@ pub struct Padding {
 impl Padding {
     pub fn new(top: f32, right: f32, bottom: f32, left: f32) -> Self {
         Self { top, right, bottom, left }
+    }
+    pub fn scaled(self, scale: f32) -> Self {
+        Self {
+            top: self.top * scale,
+            right: self.right * scale,
+            bottom: self.bottom * scale,
+            left: self.left * scale
+        }
     }
 }
 
@@ -93,6 +120,14 @@ impl Corners {
     }
     pub fn all(all: f32) -> Self {
         Corners { top_left: all, top_right: all, bottom_right: all, bottom_left: all }
+    }
+    pub fn scaled(self, scale: f32) -> Self {
+        Self {
+            top_left: self.top_left * scale,
+            top_right: self.top_right * scale,
+            bottom_right: self.bottom_right * scale,
+            bottom_left: self.bottom_left * scale,
+        }
     }
 }
 
@@ -130,7 +165,8 @@ impl Direction {
 pub struct Config {
     pub grow: f32,
     pub shrink: f32,
-    pub basis: Val
+    pub basis: Val,
+    pub align_self: AlignSelf
 }
 
 #[derive(Copy, Clone, PartialEq, Debug, Default)]
@@ -147,13 +183,32 @@ pub enum JustifyContent {
 #[derive(Copy, Clone, PartialEq, Debug, Default)]
 pub enum AlignItems {
     #[default]
+    Center,
+    Stretch,
+    Start,
+    End
+}
+
+#[derive(Copy, Clone, PartialEq, Debug, Default)]
+pub enum AlignSelf {
+    #[default]
+    Auto,
     Stretch,
     Center,
     Start,
-    End,
-    SpaceBetween,
-    SpaceAround,
-    SpaceEvenly
+    End
+}
+
+impl AlignSelf {
+    pub fn resolve(self, parent_align: AlignItems) -> AlignItems {
+        match self {
+            AlignSelf::Auto => parent_align,
+            AlignSelf::Stretch => AlignItems::Stretch,
+            AlignSelf::Center => AlignItems::Center,
+            AlignSelf::Start => AlignItems::Start,
+            AlignSelf::End => AlignItems::End
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Debug, Default)]

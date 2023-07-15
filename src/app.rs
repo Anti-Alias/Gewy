@@ -5,7 +5,7 @@ use winit::event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCo
 use winit::event_loop::{EventLoop, ControlFlow};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
-use crate::{create_pipeline, Mesh, Color, GpuMesh, Gui, View, GpuView, Painter};
+use crate::{create_pipeline, Color, Gui, Painter};
 
 pub struct App {
     pub width: u32,
@@ -31,9 +31,8 @@ impl App {
     pub fn start(self) -> ! {
         
         // Opens window and handle high-level events
-        let Self { width, height, mut gui, debug, samples_per_pixel } = self;
+        let Self { width, height, gui, debug, samples_per_pixel } = self;
         let size = PhysicalSize::new(width, height);
-        gui.resize(Vec2::new(size.width as f32, size.height as f32));
         let event_loop = EventLoop::new();
         let window = WindowBuilder::new()
             .with_inner_size(size)
@@ -96,9 +95,6 @@ struct State {
     render_pipeline: RenderPipeline,
     gui: Gui,
     painter: Painter,
-    gpu_mesh: GpuMesh,
-    view: View,
-    gpu_view: GpuView,
     msaa_texture_view: Option<TextureView>,
     samples_per_pixel: u32
 }
@@ -173,13 +169,8 @@ impl State {
         let render_pipeline = create_pipeline(&device, surface_format, debug, samples_per_pixel);
 
         // Creates a mesh/gpu mesh.
-        let mesh = Mesh::new();
-        let gpu_mesh = mesh.to_gpu(&device);
-        let painter = Painter::new(mesh);
-
-        // Creates view
-        let view = View::from_physical_size(window_size);
-        let gpu_view = view.to_gpu(&device);
+        let s = Vec2::new(window_size.width as f32, window_size.height as f32);
+        let painter = Painter::new(&device, s, gui.translation, gui.scale);
 
         let msaa_texture = if samples_per_pixel == 0 { None } else {
             Self::create_msaa_texture_view(&device, window_size, surface_format, samples_per_pixel);
@@ -197,9 +188,6 @@ impl State {
             render_pipeline,
             gui,
             painter,
-            gpu_mesh,
-            view,
-            gpu_view,
             msaa_texture_view: msaa_texture,
             samples_per_pixel
         }
@@ -208,15 +196,15 @@ impl State {
     pub fn window(&self) -> &Window { &self.window }
 
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
-        self.gui.resize(Vec2::new(new_size.width as f32, new_size.height as f32));
+        let size = Vec2::new(new_size.width as f32, new_size.height as f32);
+        self.gui.resize(size);
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
         }
-        self.view = View::from_physical_size(new_size);
-        self.view.write_to_gpu(&self.device, &self.queue, &mut self.gpu_view);
+        self.painter.resize(size, self.gui.translation, self.gui.scale, &self.device, &self.queue);
         if self.samples_per_pixel != 1 {
             self.msaa_texture_view = Some(Self::create_msaa_texture_view(&self.device, self.size, self.config.format, self.samples_per_pixel));
         }
@@ -234,7 +222,7 @@ impl State {
 
         // Paints GUI and writes to GPU mesh
         self.gui.paint(&mut self.painter);
-        self.painter.flush(&self.device, &self.queue, &mut self.gpu_mesh);
+        self.painter.flush(&self.device, &self.queue);
 
         // Gets surface texture
         let output = self.surface.get_current_texture()?;
@@ -272,10 +260,10 @@ impl State {
             depth_stencil_attachment: None
         });
         render_pass.set_pipeline(&self.render_pipeline);
-        render_pass.set_bind_group(0, &self.gpu_view.bind_group, &[]);
-        render_pass.set_vertex_buffer(0, self.gpu_mesh.vertices.slice(..));
-        render_pass.set_index_buffer(self.gpu_mesh.indices.slice(..), IndexFormat::Uint32);
-        render_pass.draw_indexed(0..self.gpu_mesh.index_count, 0, 0..1);
+        render_pass.set_bind_group(0, &self.painter.gpu_view.bind_group, &[]);
+        render_pass.set_vertex_buffer(0, self.painter.gpu_mesh.vertices.slice(..));
+        render_pass.set_index_buffer(self.painter.gpu_mesh.indices.slice(..), IndexFormat::Uint32);
+        render_pass.draw_indexed(0..self.painter.gpu_mesh.index_count, 0, 0..1);
         drop(render_pass);
 
         // Submits encoded draw calls

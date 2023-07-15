@@ -1,23 +1,29 @@
 use glam::Vec2;
 use slotmap::SlotMap;
-use crate::{GUiError, Result, NodeChildren, Node, NodeId, NodePath, NodePathElem, Rect, Layout, JustifyContent, extensions::VecExtensions, Painter};
+use crate::{GUiError, Result, NodeChildren, Node, NodeId, NodePath, NodePathElem, Rect, Layout, JustifyContent, extensions::VecExtensions, Painter, AlignItems};
 
 /// Represents a graphical user interface, and a torage of [`Node`]s.
 #[derive(Debug, Default)]
 pub struct Gui {
     storage: SlotMap<NodeId, Node>,
-    root_id: NodeId
+    root_id: NodeId,
+    pub translation: Vec2,
+    pub scale: f32
 }
 
 impl Gui {
 
     /// Creates a new [`Gui`] instance alongside the id of the root node.
-    pub fn new(root: Node, size: Vec2) -> (NodeId, Self) {
+    pub fn new(root: Node) -> (NodeId, Self) {
         let mut storage = SlotMap::<NodeId, Node>::default();
-        let root_node_id = storage.insert(root);
-        let mut slf = Self { storage, root_id: root_node_id };
-        slf.resize(size);
-        (root_node_id, slf)
+        let root_id = storage.insert(root);
+        let slf = Self {
+            storage,
+            root_id,
+            translation: Vec2::ZERO,
+            scale: 1.0
+        };
+        (root_id, slf)
     }
 
     /// Id of the root node.
@@ -104,9 +110,15 @@ impl Gui {
     }
 
     pub fn resize(&mut self, size: Vec2) {
-        let node = self.get_mut(self.root_id).unwrap();
-        node.cache.region = Rect::new(Vec2::ZERO, size);
-        self.compute_region(self.root_id);
+        let layout = Layout {
+            justify_content: JustifyContent::Center,
+            ..Default::default()
+        };
+        self.compute_regions(
+            &[self.root_id],
+            Rect::new(Vec2::ZERO, size),
+            layout
+        );
     }
 
     fn compute_region<'a>(&'a mut self, node_id: NodeId) {
@@ -119,17 +131,17 @@ impl Gui {
         // Computes regions of children
         let layout = node.style.layout;
         let region = node.cache.region;
-        self.compute_regions(children, region, layout, layout.direction.is_row());
+        self.compute_regions(children, region, layout);
     }
 
     fn compute_regions(
         &mut self,
         node_ids: &[NodeId],
         parent_region: Rect,
-        parent_layout: Layout,
-        is_row: bool
+        parent_layout: Layout
     ) {
         // Computes basis of each node, and returns the total
+        let is_row: bool = parent_layout.direction.is_row();
         let parent_size = parent_region.size.flip(!is_row);
         let mut basis_total = 0.0;
         for id in node_ids {
@@ -138,73 +150,139 @@ impl Gui {
             node.cache.basis = basis;
             basis_total += basis;
         }
+        let is_reverse = parent_layout.direction.is_reverse();
 
-        // Growing scenario
+        // Either grows or shinks on primary axis
         if basis_total <= parent_size.x {
-            self.grow_children(node_ids, basis_total, parent_size, parent_layout, is_row);
-            for id in node_ids {
-                let node = self.get_mut(*id).unwrap();
-                node.cache.region = node.cache.region.flip(!is_row);
-                node.cache.region.pos += parent_region.pos;
-                self.compute_region(*id);
-            }
+            let group_size = self.pack_group(node_ids, parent_size, basis_total, is_row, is_reverse);
+            self.grow_group(node_ids, group_size.x, parent_size.x, parent_layout.justify_content, is_reverse);
+            self.align_group(node_ids, parent_size.y, parent_size.y, parent_layout.align_items);
         }
-
-        // Shrinking scenario
         else {
             log::warn!("Shrinking not yet supported");
+            return;
+        }
+
+        // Moves children from their local coordinate space to a global one.
+        for id in node_ids {
+            let node = self.get_mut(*id).unwrap();
+            node.cache.region = node.cache.region.flip(!is_row);
+            node.cache.region.pos += parent_region.pos;
+            self.compute_region(*id);
         }
     }
 
-    fn grow_children(
-        &mut self,
-        node_ids: &[NodeId],
-        basis_total: f32,
-        parent_size: Vec2,
-        parent_layout: Layout,
-        is_row: bool
-    ) {
+    // Computes the "effective size" of each node.
+    // Accumulates the total "effective size".
+    // Packs nodes next to each other contiguously as an intermediate step.
+    fn pack_group(&mut self, group: &[NodeId], parent_size: Vec2, basis_total: f32, is_row: bool, is_reverse: bool) -> Vec2 {
 
-        // Computes the total growth of all the nodes
+        // Computes the total "grow" value of all nodes.
         let mut grow_total = 0.0;
-        for id in node_ids {
+        for id in group {
             let node = self.get_mut(*id).unwrap();
             grow_total += node.style.config.grow.max(0.0);
         }
         grow_total = grow_total.max(1.0);
 
-        // Sizes nodes and lines them of from left to right with no spacing.
-        let remaining_width = parent_size.x - basis_total;
-        let mut total_width = 0.0;
-        for id in node_ids {
+        // Resolves the pixel size of each node and packs them closely together.
+        let remaining_width_basis = parent_size.x - basis_total;
+        let mut group_width = 0.0;
+        let mut group_height = 0.0;
+        let node_ids = group.iter();
+        for_each(node_ids, is_reverse, |id| {
             let node = self.get_mut(*id).unwrap();
             let grow_perc = node.style.config.grow / grow_total;
-            let node_width = node.cache.basis + remaining_width * grow_perc;
-            let node_height = node.style.get_height(parent_size.y, is_row);
-            node.cache.region = Rect::new(
-                Vec2::new(total_width, 0.0),
-                Vec2::new(node_width, node_height)
-            );
-            total_width += node_width;
-        }
+            let node_width = node.cache.basis + grow_perc * remaining_width_basis;
+            let node_height = node.style.get_effective_height(parent_size.y, is_row);
+            if node_height > group_height {
+                group_height = node_height;
+            }
+            node.cache.region = Rect {
+                pos: Vec2::new(group_width, 0.0),
+                size: Vec2::new(node_width, node_height)
+            };
+            group_width += node_width;
+        });
 
-        // Determines offset and spacing of nodes
-        let (offset, spacing) = match parent_layout.justify_content {
+        Vec2::new(group_width, group_height)
+    }
+
+    // Grows "packed" children on the primary axis.
+    fn grow_group(
+        &mut self,
+        group: &[NodeId],
+        group_width: f32,
+        parent_width: f32,
+        justify_content: JustifyContent,
+        is_reverse: bool
+    ) {
+
+        // Determines offset and spacing of nodes based on the layout.    
+        let (offset, spacing) = match justify_content {
             JustifyContent::Start => return,
-            JustifyContent::End => (parent_size.x - total_width, 0.0),
-            JustifyContent::Center => (parent_size.x/2.0 - total_width/2.0, 0.0),
-            _ => todo!()
+            JustifyContent::End => (parent_width - group_width, 0.0),
+            JustifyContent::Center => (parent_width/2.0 - group_width/2.0, 0.0),
+            JustifyContent::SpaceBetween => {
+                let remaining_width = parent_width - group_width;
+                let num_gaps = (group.len() - 1) as f32;
+                (0.0, remaining_width / num_gaps)
+            },
+            JustifyContent::SpaceAround => {
+                let remaining_width = parent_width - group_width;
+                let num_nodes = group.len() as f32;
+                let gap = remaining_width / num_nodes;
+                (gap / 2.0, gap)
+            },
+            JustifyContent::SpaceEvenly => {
+                let remaining_width = parent_width - group_width;
+                let num_gaps = (group.len() + 1) as f32;
+                let gap = remaining_width / num_gaps;
+                (gap, gap)
+            }
         };
 
-        // Applies offset and spacing to nodes
-        for (i, id) in node_ids.iter().enumerate() {
+        // Applies offset and spacing to nodes.
+        let id_iter = group.iter();
+        let mut spacing_accum = 0.0;
+        for_each(id_iter, is_reverse, |id| {
             let node = self.get_mut(*id).unwrap();
-            node.cache.region.pos += offset;
-            node.cache.region.pos += (i as f32) * spacing;
+            node.cache.region.pos.x += offset + spacing_accum;
+            spacing_accum += spacing;
+        });
+    }
+
+    // Aligns "packed" children on the secondary axis.
+    fn align_group(
+        &mut self,
+        group: &[NodeId],
+        group_height: f32,
+        parent_height: f32,
+        align_items: AlignItems
+    ) {
+
+        for id in group {
+            let node = self.get_mut(*id).unwrap();
+            let align_items = node.style.config.align_self.resolve(align_items);
+            match align_items {
+                AlignItems::Start => {},
+                AlignItems::Stretch => {
+                    node.cache.region.size.y = group_height;
+                },
+                AlignItems::Center => {
+                    let node_size = node.cache.region.size;
+                    let node_height = node_size.y;
+                    node.cache.region.pos.y = parent_height / 2.0 - node_height / 2.0;
+                },
+                AlignItems::End =>  {
+                    let node_height = node.cache.region.size.y;
+                    node.cache.region.pos.y = parent_height - node_height;
+                }
+            }
         }
     }
 
-    pub(crate) fn paint(&mut self, painter: &mut Painter) {
+    pub fn paint(&mut self, painter: &mut Painter) {
         self.paint_node(self.root_id, painter);
     }
 
@@ -230,15 +308,32 @@ impl Gui {
 }
 
 
+/// Helper function that allows for either iterating forwards or in reverse based on a boolean flag.
+fn for_each<I, T, F>(iter: I, reverse: bool, mut f: F)
+where
+    I: DoubleEndedIterator<Item = T>,
+    F: FnMut(T)
+{
+    if reverse {
+        for elem in iter.into_iter().rev() {
+            f(elem)
+        }
+    }
+    else {
+        for elem in iter {
+            f(elem)
+        }
+    }
+}
+
+
 #[cfg(test)]
 mod test {
-    use glam::Vec2;
-
     use crate::{Gui, Node};
 
     #[test]
     fn test_insert() {
-        let (root_id, mut nodes) = Gui::new(Node::default(), Vec2::new(100.0, 100.0));
+        let (root_id, mut nodes) = Gui::new(Node::default());
         let child_1_id = nodes.insert(Node::default(), root_id).unwrap();
         let child_2_id = nodes.insert(Node::default(), root_id).unwrap();
         
@@ -256,7 +351,7 @@ mod test {
 
     #[test]
     fn test_remove() {
-        let (root_id, mut nodes) = Gui::new(Node::default(), Vec2::new(100.0, 100.0));
+        let (root_id, mut nodes) = Gui::new(Node::default());
         let child_1_id = nodes.insert(Node::default(), root_id).unwrap();
         let child_2_id = nodes.insert(Node::default(), root_id).unwrap();
         

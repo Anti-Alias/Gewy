@@ -1,23 +1,26 @@
-use another_rust_ui::{App, Gui, Node, Style, Pane, Color, Val, Layout, Corners};
-use glam::Vec2;
+use another_rust_ui::{App, Gui, Node, Style, Pane, Color, Val, Layout, Corners, Direction, JustifyContent, Config, AlignSelf, AlignItems};
 
 const WINDOW_WIDTH: u32 = 512;
 const WINDOW_HEIGHT: u32 = 512;
 
 fn main() {
-    let mut app = App::new(make_gui(), WINDOW_WIDTH, WINDOW_HEIGHT);
-    //app.debug = true;
+    let gui = make_gui();
+    let app = App::new(gui, WINDOW_WIDTH, WINDOW_HEIGHT);
     app.start();
 }
 
 
 fn make_gui() -> Gui {
+    
     let root = Node::tagged(
         "root",
         Style {
             color: Color::RED,
             corners: Corners::all(10.0),
-            layout: Layout {
+            layout: Layout {    
+                justify_content: JustifyContent::SpaceAround,
+                align_items: AlignItems::Center,
+                direction: Direction::ColumnReverse,
                 ..Default::default()
             },
             ..Default::default()
@@ -29,9 +32,13 @@ fn make_gui() -> Gui {
         "blue",
         Style {
             color: Color::BLUE,
-            corners: Corners::all(4.0),
+            corners: Corners::all(10.0),
             width: Val::Px(64.0),
             height: Val::Px(64.0),
+            config: Config {
+                grow: 0.0,
+                ..Default::default()
+            },
             ..Default::default()
         },
         Pane
@@ -41,16 +48,20 @@ fn make_gui() -> Gui {
         "green",
         Style {
             color: Color::GREEN,
-            corners: Corners::all(1000.0),
+            corners: Corners::all(10.0),
             width: Val::Px(128.0),
-            height: Val::Px(64.0),
+            height: Val::Px(128.0),
+            config: Config {
+                grow: 0.0,
+                align_self: AlignSelf::Stretch,
+                ..Default::default()
+            },
             ..Default::default()
         },
         Pane
     );
 
-    let gui_size = Vec2::new(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32);
-    let (root_id, mut gui) = Gui::new(root, gui_size);
+    let (root_id, mut gui) = Gui::new(root);
     let _blue_id = gui.insert(blue, root_id).unwrap();
     let _green_id = gui.insert(green, root_id).unwrap();
 
