@@ -22,4 +22,11 @@ impl Rect {
             self
         }
     }
+
+    pub fn round(self, unit: f32) -> Self {
+        Self {
+            position: (self.position / unit).round() * unit,
+            size: (self.size / unit).round() * unit
+        }
+    }
 }

@@ -8,9 +8,9 @@ new_key_type! {
 
 #[derive(Debug)]
 pub struct Node {
-    pub(crate) style: Style,
     pub(crate) widget: Box<dyn Widget>,
     pub(crate) tag: Tag,
+    pub(crate) style: Style,
     pub(crate) children_ids: Vec<NodeId>,
     pub(crate) parent_id: Option<NodeId>,
     pub(crate) raw: Raw
@@ -30,70 +30,54 @@ impl Default for Node {
 }
 
 impl Node {
-
-    /// Makes a new node.
-    pub fn new(style: Style, widget: impl Widget) -> Self {
+    pub fn new(widget: impl Widget, tag: Tag, style: Style) -> Self {
         Self {
             style,
             widget: Box::new(widget),
+            tag,
             ..Default::default()
         }
     }
-
-    /// Makes a named node.
-    pub fn tagged(tag: impl Into<Tag>, style: Style, widget: impl Widget) -> Self {
+    pub fn from_widget(widget: impl Widget, tag: Tag) -> Self {
+        let mut style = Style::default();
+        widget.style(&mut style);
         Self {
             style,
             widget: Box::new(widget),
-            tag: tag.into(),
+            tag,
             ..Default::default()
         }
     }
-
-    /// Makes an indexed node.
-    pub fn indexed(index: usize, style: Style, widget: impl Widget) -> Self {
-        Self {
-            style,
-            widget: Box::new(widget),
-            tag: Tag::Index(index),
-            ..Default::default()
-        }
-    }
-
     pub fn style(&self) -> &Style { &self.style }
     pub fn style_mut(&mut self) -> &Style { &mut self.style }
-    pub fn get_widget(&self) -> &dyn Widget { self.widget.as_ref() }
-    pub fn get_widget_mut(&mut self) -> &mut dyn Widget { self.widget.as_mut() }
-    pub fn get_tag(&self) -> &Tag { &self.tag }
-    pub fn get_tag_mut(&mut self) -> &mut Tag { &mut self.tag }
+    pub fn widget(&self) -> &dyn Widget { self.widget.as_ref() }
+    pub fn widget_mut(&mut self) -> &mut dyn Widget { self.widget.as_mut() }
+    pub fn tag(&self) -> &Tag { &self.tag }
+    pub fn tag_mut(&mut self) -> &mut Tag { &mut self.tag }
     pub fn children(&self) -> &[NodeId] { &self.children_ids }
     pub fn parent(&self) -> Option<NodeId> { self.parent_id }
 }
 
 
 /// Tag that can be attached [`Node`].
+/// Identifies which node it is within a [`Widget`].
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub enum Tag {
+    /// Empty tag. Events fired from this node will not propogate.
     #[default]
-    Empty,
-    Name(&'static str),
-    Index(usize)
+    None,
+    /// Represents the "name" of the node, as an integer.
+    Name(u16),
+    /// Represents the index this node is in within a group.
+    /// Useful for identifying nodes within a variable-sized list of nodes, all belonging to the same group (ancestor node).
+    Index { group: u16, index: u16 }
 }
 
-impl From<()> for Tag {
-    fn from(_value: ()) -> Self {
-        Self::Empty
+impl Tag {
+    pub const fn name(name: u16) -> Self {
+        Self::Name(name)
     }
-}
-
-impl From<&'static str> for Tag {
-    fn from(value: &'static str) -> Self {
-        Self::Name(value)
-    }
-}
-
-impl From<usize> for Tag {
-    fn from(value: usize) -> Self {
-        Self::Index(value)
+    pub const fn index(group: u16, index: u16) -> Self {
+        Self::Index { group, index }
     }
 }

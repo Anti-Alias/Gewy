@@ -8,7 +8,8 @@ pub struct Gui {
     storage: SlotMap<NodeId, Node>,
     root_id: NodeId,
     pub translation: Vec2,
-    pub scale: f32
+    pub scale: f32,
+    pub round: bool
 }
 
 impl Gui {
@@ -21,7 +22,8 @@ impl Gui {
             storage,
             root_id,
             translation: Vec2::ZERO,
-            scale: 1.0
+            scale: 1.0,
+            round: true
         };
         (root_id, slf)
     }
@@ -45,7 +47,7 @@ impl Gui {
     /// Returns id of node inserted.
     pub fn insert(&mut self, mut node: Node, parent_id: NodeId) -> Result<NodeId> {
 
-        // Stores node as a child of its parent
+        // Stores node as a child of another.
         node.parent_id = Some(parent_id);
         let node_id = self.storage.insert(node);
         let Some(parent) = self.storage.get_mut(parent_id) else {
@@ -58,9 +60,9 @@ impl Gui {
         unsafe {
             let gui = self as *mut Self;
             let gui = &mut *gui;
-            let children = NodeChildren { gui };
+            let children = NodeChildren { gui, parent_id: node_id };
             let node = self.storage.get_mut(node_id).unwrap();
-            node.widget.render_children(node_id, children)?;    // Using node past here is unsafe!!!
+            node.widget.children(children)?;
         };
 
         // Done
@@ -153,6 +155,7 @@ impl Gui {
         self.decorate_group(node_ids);
 
         // Moves children from their local coordinate space to the global one.
+        // Round their positions if configured to do so.
         for id in node_ids {
             let node = self.get_mut(*id).unwrap();
             node.raw.region = node.raw.region.flip(!is_row);
@@ -257,7 +260,6 @@ impl Gui {
         parent_height: f32,
         align_items: AlignItems
     ) {
-
         for id in group {
             let node = self.get_mut(*id).unwrap();
             let align_items = node.style.config.align_self.resolve(align_items);
@@ -299,13 +301,19 @@ impl Gui {
         let style = &node.style;
 
         // Paints widget
-        let paint_region = node.raw.outer_region();
-        painter.translation = paint_region.position;
+        let mut paint_region = node.raw.outer_region();
+        let mut corners = node.raw.corners;
+        if self.round {
+            let unit = 1.0/self.scale;
+            paint_region = paint_region.round(unit);
+            corners = corners.round(unit);
+        }
         let canvas = Canvas {
             size: paint_region.size,
-            corners: node.raw.corners,
+            corners
         };
-        widget.render_self(style, canvas, painter);
+        painter.translation = paint_region.position;
+        widget.paint(style, canvas, painter);
 
         // Renders children of node
         let children: &[NodeId] = unsafe {
@@ -340,7 +348,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{Gui, Node};
+    use crate::{Gui, Node, NodeId};
 
     #[test]
     fn test_insert() {
@@ -365,6 +373,7 @@ mod test {
         let (root_id, mut nodes) = Gui::new(Node::default());
         let child_1_id = nodes.insert(Node::default(), root_id).unwrap();
         let child_2_id = nodes.insert(Node::default(), root_id).unwrap();
+        NodeId::default();
         
         let root = nodes.get(root_id).unwrap();
         assert_eq!(2, root.children().len());

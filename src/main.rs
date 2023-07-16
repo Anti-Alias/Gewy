@@ -8,12 +8,12 @@ fn main() {
 
 fn make_gui() -> Gui {
     
-    let root = Node::tagged(
-        "root",
+    let root = Node::new(
+        Pane,
+        Tag::None,
         Style {
             color: Color::RED,
             corners: Corners::all(Val::Px(10.0)),
-            padding: Padding::all(Val::Px(10.0)),
             layout: Layout {    
                 justify_content: JustifyContent::SpaceEvenly,
                 align_items: AlignItems::Center,
@@ -21,32 +21,31 @@ fn make_gui() -> Gui {
                 ..Default::default()
             },
             ..Default::default()
-        },
-        Pane
+        }
     );
 
-    let blue = Node::tagged(
-        "blue",
+    let blue = Node::new(
+        Pane,
+        Tag::None,
         Style {
             color: Color::BLUE,
             corners: Corners::all(Val::Px(10.0)),
             width: Val::Px(64.0),
             height: Val::Px(64.0),
             ..Default::default()
-        },
-        Pane
+        }
     );
 
-    let green = Node::tagged(
-        "green",
+    let green = Node::new(
+        Pane,
+        Tag::None,
         Style {
             color: Color::GREEN,
             corners: Corners::all(Val::Px(10.0)),
             width: Val::Px(128.0),
             height: Val::Px(128.0),
             ..Default::default()
-        },
-        Pane
+        }
     );
 
     let (root_id, mut gui) = Gui::new(root);

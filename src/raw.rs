@@ -6,7 +6,6 @@ pub type RawMargin = RawSides;
 pub type RawPadding = RawSides;
 
 /// Stores raw values computed during the layout phase.
-/// Units of all values are stored in pixels.
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
 pub(crate) struct Raw {
     pub region: Rect,
@@ -45,6 +44,16 @@ pub struct RawCorners {
     pub top_right: f32,
     pub bottom_right: f32,
     pub bottom_left: f32
+}
+impl RawCorners {
+    pub(crate) fn round(self, unit: f32) -> Self {
+        Self {
+            top_left: (self.top_left / unit).round() * unit,
+            top_right: (self.top_right / unit).round() * unit,
+            bottom_right: (self.bottom_right / unit).round() * unit,
+            bottom_left: (self.bottom_left / unit).round() * unit
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
