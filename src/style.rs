@@ -1,14 +1,17 @@
 use glam::Vec2;
 
-use crate::{Color, RawCorners};
+use crate::{Color, RawCorners, RawSides, RawMargin, RawPadding};
+
+pub type Margin = Sides;
+pub type Padding = Sides;
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Style {
     pub width: Val,
     pub height: Val,
     pub color: Color,
-    pub margin: Margin,
-    pub padding: Padding,
+    pub margin: Sides,
+    pub padding: Sides,
     pub corners: Corners,
     pub layout: Layout,
     pub config: Config
@@ -43,9 +46,26 @@ impl Style {
         let corners = &self.corners;
         RawCorners {
             top_left: corners.top_left.to_raw(parent_size),
-            top_right: corners.top_left.to_raw(parent_size),
-            bottom_right: corners.top_left.to_raw(parent_size),
-            bottom_left: corners.top_left.to_raw(parent_size)
+            top_right: corners.top_right.to_raw(parent_size),
+            bottom_right: corners.bottom_right.to_raw(parent_size),
+            bottom_left: corners.bottom_left.to_raw(parent_size)
+        }
+    }
+
+    pub(crate) fn raw_margin(&self, parent_size: Vec2) -> RawMargin {
+        Self::raw_sides(&self.margin, parent_size)
+    }
+
+    pub(crate) fn raw_padding(&self, parent_size: Vec2) -> RawPadding {
+        Self::raw_sides(&self.padding, parent_size)
+    }
+
+    fn raw_sides(sides: &Sides, parent_size: Vec2) -> RawSides {
+        RawSides {
+            top: sides.top.to_raw(parent_size.y),
+            right: sides.right.to_raw(parent_size.x),
+            bottom: sides.bottom.to_raw(parent_size.y),
+            left: sides.left.to_raw(parent_size.x)
         }
     }
 }
@@ -66,58 +86,61 @@ impl Val {
     pub fn to_raw(self, parent: f32) -> f32 {
         match self {
             Self::Px(px) => px,
-            Self::Pc(pc) => parent * pc,
+            Self::Pc(pc) => pc.clamp(0.0, 1.0) * parent,
             Self::Auto => parent
         }
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Default, Debug)]
-pub struct Margin {
-    pub top: f32,
-    pub right: f32,
-    pub bottom: f32,
-    pub left: f32
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct Sides {
+    pub top: Val,
+    pub right: Val,
+    pub bottom: Val,
+    pub left: Val
 }
 
-impl Margin {
-    pub fn new(top: f32, right: f32, bottom: f32, left: f32) -> Self {
+impl Default for Sides {
+    fn default() -> Self {
+        Self::all(Val::Px(0.0))
+    }
+}
+
+impl Sides {
+    pub fn new(top: Val, right: Val, bottom: Val, left: Val) -> Self {
         Self { top, right, bottom, left }
     }
-    pub fn scaled(self, scale: f32) -> Self {
+    pub fn all(all: Val) -> Self {
+        Self::new(all, all, all, all)
+    }
+    pub fn top(top: Val) -> Self {
         Self {
-            top: self.top * scale,
-            right: self.right * scale,
-            bottom: self.bottom * scale,
-            left: self.left * scale
+            top,
+            ..Default::default()
         }
     }
-}
-
-#[derive(Copy, Clone, PartialEq, Default, Debug)]
-pub struct Padding {
-    pub top: f32,
-    pub right: f32,
-    pub bottom: f32,
-    pub left: f32
-}
-
-impl Padding {
-    pub fn new(top: f32, right: f32, bottom: f32, left: f32) -> Self {
-        Self { top, right, bottom, left }
-    }
-    pub fn scaled(self, scale: f32) -> Self {
+    pub fn right(right: Val) -> Self {
         Self {
-            top: self.top * scale,
-            right: self.right * scale,
-            bottom: self.bottom * scale,
-            left: self.left * scale
+            right,
+            ..Default::default()
+        }
+    }
+    pub fn bottom(bottom: Val) -> Self {
+        Self {
+            bottom,
+            ..Default::default()
+        }
+    }
+    pub fn left(left: Val) -> Self {
+        Self {
+            left    ,
+            ..Default::default()
         }
     }
 }
 
 /// Corner radiuses
-#[derive(Copy, Clone, PartialEq, Default, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Corners {
     pub top_left: Val,
     pub top_right: Val,
@@ -125,12 +148,18 @@ pub struct Corners {
     pub bottom_left: Val
 }
 
+impl Default for Corners {
+    fn default() -> Self {
+        Self::all(Val::Px(0.0))
+    }
+}
+
 impl Corners {
     pub fn new(top_left: Val, top_right: Val, bottom_right: Val, bottom_left: Val) -> Corners {
         Corners { top_left, top_right, bottom_right, bottom_left }
     }
     pub fn all(all: Val) -> Self {
-        Corners { top_left: all, top_right: all, bottom_right: all, bottom_left: all }
+        Corners::new(all, all, all, all)
     }
 }
 

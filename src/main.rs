@@ -1,12 +1,8 @@
-use another_rust_ui::{App, Gui, Node, Style, Pane, Color, Val, Layout, Corners, Direction, JustifyContent, Config, AlignItems};
-
-const WINDOW_WIDTH: u32 = 512;
-const WINDOW_HEIGHT: u32 = 512;
+use another_rust_ui::*;
 
 fn main() {
     let gui = make_gui();
-    let app = App::new(gui, WINDOW_WIDTH, WINDOW_HEIGHT);
-    app.start();
+    App::new(gui, 512, 512).start();
 }
 
 
@@ -17,10 +13,11 @@ fn make_gui() -> Gui {
         Style {
             color: Color::RED,
             corners: Corners::all(Val::Px(10.0)),
+            padding: Padding::all(Val::Px(10.0)),
             layout: Layout {    
                 justify_content: JustifyContent::SpaceEvenly,
                 align_items: AlignItems::Center,
-                direction: Direction::Column,
+                direction: Direction::Row,
                 ..Default::default()
             },
             ..Default::default()
@@ -32,13 +29,9 @@ fn make_gui() -> Gui {
         "blue",
         Style {
             color: Color::BLUE,
-            corners: Corners::all(Val::Pc(0.1)),
+            corners: Corners::all(Val::Px(10.0)),
             width: Val::Px(64.0),
-            height: Val::Px(128.0),
-            config: Config {
-                grow: 1.0,
-                ..Default::default()
-            },
+            height: Val::Px(64.0),
             ..Default::default()
         },
         Pane
@@ -51,10 +44,6 @@ fn make_gui() -> Gui {
             corners: Corners::all(Val::Px(10.0)),
             width: Val::Px(128.0),
             height: Val::Px(128.0),
-            config: Config {
-                grow: 0.0,
-                ..Default::default()
-            },
             ..Default::default()
         },
         Pane

@@ -28,6 +28,16 @@ impl App {
         }
     }
 
+    pub fn with_debug(mut self, debug: bool) -> Self {
+        self.debug = debug;
+        self
+    }
+
+    pub fn with_sampless_per_pixel(mut self, samples_per_pixel: u32) -> Self {
+        self.samples_per_pixel = samples_per_pixel;
+        self
+    }
+
     pub fn start(self) -> ! {
         
         // Opens window and handle high-level events

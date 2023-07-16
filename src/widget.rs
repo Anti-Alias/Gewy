@@ -43,6 +43,7 @@ impl<'n> NodeChildren<'n> {
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
 pub struct Canvas {
     /// Size of the canvas in pixels.
+    /// Widgets must not paint outside of the range [0.0, 0.0] - [size.x, size.y].
     pub size: Vec2,
     /// Radiuses of corners in pixels.
     pub corners: RawCorners

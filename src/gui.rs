@@ -1,6 +1,6 @@
 use glam::Vec2;
 use slotmap::SlotMap;
-use crate::{GUiError, Result, NodeChildren, Node, NodeId, Rect, Layout, JustifyContent, extensions::VecExtensions, Painter, AlignItems};
+use crate::{GUiError, Result, NodeChildren, Node, NodeId, Rect, Layout, JustifyContent, extensions::VecExtensions, Painter, AlignItems, Canvas};
 
 /// Represents a graphical user interface, and a torage of [`Node`]s.
 #[derive(Debug, Default)]
@@ -24,6 +24,16 @@ impl Gui {
             scale: 1.0
         };
         (root_id, slf)
+    }
+
+    pub fn with_translation(mut self, translation: Vec2) -> Self {
+        self.translation = translation;
+        self
+    }
+
+    pub fn with_scale(mut self, scale: f32) -> Self {
+        self.scale = scale;
+        self
     }
 
     /// Id of the root node.
@@ -113,7 +123,7 @@ impl Gui {
 
         // Computes regions of children
         let layout = node.style.layout;
-        let region = node.raw.region;
+        let region = node.raw.inner_region();
         self.compute_regions(children, region, layout);
     }
 
@@ -127,24 +137,26 @@ impl Gui {
         let is_row = parent_layout.direction.is_row();
         let parent_size = parent_region.size.flip(!is_row);
 
-        // Packs nodes horizontally, and aligns them vertially.
-        let (raw_basis_total, raw_group_width) = self.pack_group(node_ids, parent_size, is_row, is_reverse);
-        self.align_group(node_ids, parent_size.y, parent_size.y, parent_layout.align_items);
+        // Determines "packed values" of this group.
+        let (group_width, grow_total) = self.pack_group(node_ids, parent_size, is_row, is_reverse);
 
         // Either grows or shinks on primary axis.
-        if raw_basis_total <= parent_size.x {
-            self.grow_group(node_ids, raw_group_width, parent_size.x, parent_layout.justify_content, is_reverse);
+        if group_width <= parent_size.x {
+            self.grow_group(node_ids, group_width, grow_total, parent_size.x, parent_layout.justify_content, is_reverse);
         }
         else {
             log::warn!("Shrinking not yet supported");
-            return;
         }
+
+        // Aligns and decorates nodes.
+        self.align_group(node_ids, parent_size.y, parent_size.y, parent_layout.align_items);
+        self.decorate_group(node_ids);
 
         // Moves children from their local coordinate space to the global one.
         for id in node_ids {
             let node = self.get_mut(*id).unwrap();
             node.raw.region = node.raw.region.flip(!is_row);
-            node.raw.region.pos += parent_region.pos;
+            node.raw.region.position += parent_region.position;
             self.compute_region(*id);
         }
     }
@@ -153,42 +165,29 @@ impl Gui {
 
         // Computes "basis" and "grow" totals.
         // Converts various properties to their "raw" values for later usage.
-        let mut raw_basis_total = 0.0;
+        let mut current_x = 0.0;
         let mut grow_total = 0.0;
-        for id in group {
-            
-            let node = self.get_mut(*id).unwrap();
-            node.raw.basis = node.style.raw_basis(parent_size.x, is_row);
-            node.raw.corners = node.style.raw_corners(parent_size);
-
-            raw_basis_total += node.raw.basis;
-            grow_total += node.style.config.grow.max(0.0);
-        }
-        grow_total = grow_total.max(1.0);
-
-        // Resolves the raw size of each node and packs them closely together, left to right.
-        // Computes total raw width.
-        let remaining_width_basis = parent_size.x - raw_basis_total;
-        let mut raw_group_width = 0.0;
-        let mut group_height = 0.0;
         let node_ids = group.iter();
         for_each(node_ids, is_reverse, |id| {
             let node = self.get_mut(*id).unwrap();
-            let grow_perc = node.style.config.grow.max(0.0) / grow_total;
-            let raw_width = node.raw.basis + grow_perc * remaining_width_basis;
-            let raw_height = node.style.raw_height(parent_size.y, is_row);
-            if raw_height > group_height {
-                group_height = raw_height;
-            }
-            node.raw.region = Rect {
-                pos: Vec2::new(raw_group_width, 0.0),
-                size: Vec2::new(raw_width, raw_height)
-            };
-            raw_group_width += raw_width;
+            node.raw.margin = node.style.raw_margin(parent_size);
+            node.raw.padding = node.style.raw_padding(parent_size);
+            let raw_basis = node.style.raw_basis(parent_size.x, is_row);
+            let raw_margin = node.raw.margin.size().flip(!is_row);
+            let raw_padding = node.raw.padding.size().flip(!is_row);
+            let outer_width = raw_basis + raw_margin.x + raw_padding.x;
+            let outer_height = node.style.raw_height(parent_size.y, is_row) + raw_margin.y + raw_padding.y;
+            node.raw.region = Rect::new(
+                Vec2::new(current_x, 0.0),
+                Vec2::new(outer_width, outer_height)
+            );
+            current_x += outer_width;
+            grow_total += node.style.config.grow;
         });
+        grow_total = grow_total.max(1.0);
 
         // Done
-        (raw_basis_total, raw_group_width)
+        (current_x, grow_total)
     }
 
     // Grows "packed" children on the primary axis.
@@ -196,12 +195,27 @@ impl Gui {
         &mut self,
         group: &[NodeId],
         group_width: f32,
+        grow_total: f32,
         parent_width: f32,
         justify_content: JustifyContent,
         is_reverse: bool
     ) {
 
-        // Determines offset and spacing of nodes based on the layout.    
+        // Grows and offsets nodes horizontally.
+        let remaining_width = parent_width - group_width;
+        let mut current_x = 0.0;
+        let node_ids = group.iter();
+        for_each(node_ids, is_reverse, |id| {
+            let node = self.get_mut(*id).unwrap();
+            let grow_perc = node.style.config.grow.max(0.0) / grow_total;
+            let new_width = node.raw.region.size.x + grow_perc * remaining_width;
+            node.raw.region.position.x = current_x;
+            node.raw.region.size.x = new_width;
+            current_x += new_width;
+        });
+
+        // Determines offset and spacing of nodes based on the layout.
+        let group_width = current_x;
         let (offset, spacing) = match justify_content {
             JustifyContent::Start => return,
             JustifyContent::End => (parent_width - group_width, 0.0),
@@ -230,7 +244,7 @@ impl Gui {
         let mut spacing_accum = 0.0;
         for_each(id_iter, is_reverse, |id| {
             let node = self.get_mut(*id).unwrap();
-            node.raw.region.pos.x += offset + spacing_accum;
+            node.raw.region.position.x += offset + spacing_accum;
             spacing_accum += spacing;
         });
     }
@@ -255,13 +269,21 @@ impl Gui {
                 AlignItems::Center => {
                     let node_size = node.raw.region.size;
                     let node_height = node_size.y;
-                    node.raw.region.pos.y = parent_height / 2.0 - node_height / 2.0;
+                    node.raw.region.position.y = parent_height / 2.0 - node_height / 2.0;
                 },
                 AlignItems::End =>  {
                     let node_height = node.raw.region.size.y;
-                    node.raw.region.pos.y = parent_height - node_height;
+                    node.raw.region.position.y = parent_height - node_height;
                 }
             }
+        }
+    }
+
+    // Decorates nodes that have been transformed.
+    fn decorate_group(&mut self, group: &[NodeId]) {
+        for id in group {
+            let node = self.get_mut(*id).unwrap();
+            node.raw.corners = node.style.raw_corners(node.raw.outer_region().size);
         }
     }
 
@@ -277,8 +299,13 @@ impl Gui {
         let style = &node.style;
 
         // Paints widget
-        painter.translation = node.raw.region.pos;
-        widget.render_self(style, node.raw.canvas(), painter);
+        let paint_region = node.raw.outer_region();
+        painter.translation = paint_region.position;
+        let canvas = Canvas {
+            size: paint_region.size,
+            corners: node.raw.corners,
+        };
+        widget.render_self(style, canvas, painter);
 
         // Renders children of node
         let children: &[NodeId] = unsafe {
