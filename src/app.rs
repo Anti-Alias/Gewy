@@ -24,7 +24,7 @@ impl App {
             height,
             gui,
             debug: false,
-            samples_per_pixel: 4
+            samples_per_pixel: 8
         }
     }
 
@@ -100,31 +100,12 @@ struct State {
 }
 
 impl State {
-
-    fn print_format_features(adapter: &Adapter, format: TextureFormat) {
-        let features = adapter.get_texture_format_features(format);
-        let flags = features.flags;
-        println!(
-            "{format:?}: 1x: {}, 2x: {}, 4x: {}, 8x: {}",
-            flags.sample_count_supported(1),
-            flags.sample_count_supported(2),
-            flags.sample_count_supported(4),
-            flags.sample_count_supported(8)
-        );
-    }
-    
+   
     async fn new(window: Window, gui: Gui, debug: bool, samples_per_pixel: u32) -> Self {
        
         // WGPU instance
-        let mut features = Features::empty();
-        if debug { features |= Features::POLYGON_MODE_LINE }
-
         let window_size = window.inner_size();
-        let instance = Instance::new(InstanceDescriptor {
-            backends: Backends::all(),
-            //backends: Backends::VULKAN,
-            ..Default::default()
-        });
+        let instance = Instance::new(InstanceDescriptor::default());
         
         // Surface and adapter
         let surface = unsafe { instance.create_surface(&window) }.unwrap();
@@ -139,7 +120,7 @@ impl State {
         // Device and queue
         let (device, queue) = adapter.request_device(
             &DeviceDescriptor {
-                features,
+                features: Self::features(debug),
                 label: None,
                 ..Default::default()
             },
@@ -162,8 +143,6 @@ impl State {
             view_formats: vec![],
         };
         surface.configure(&device, &config);
-
-        Self::print_format_features(&adapter, surface_format);
 
         // Builds render pipeline
         let render_pipeline = create_pipeline(&device, surface_format, debug, samples_per_pixel);
@@ -285,5 +264,12 @@ impl State {
                 view_formats: &[format]
             })
             .create_view(&TextureViewDescriptor::default())
+    }
+
+    fn features(debug: bool) -> Features {
+        let mut features = Features::empty();
+        if debug { features |= Features::POLYGON_MODE_LINE }
+        features |= Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES;
+        features
     }
 }

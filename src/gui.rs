@@ -8,7 +8,8 @@ pub struct Gui {
     storage: SlotMap<NodeId, Node>,
     root_id: NodeId,
     pub translation: Vec2,
-    pub scale: f32
+    pub scale: f32,
+    pub round: bool
 }
 
 impl Gui {
@@ -21,7 +22,8 @@ impl Gui {
             storage,
             root_id,
             translation: Vec2::ZERO,
-            scale: 1.0
+            scale: 1.0,
+            round: true
         };
         (root_id, slf)
     }
@@ -141,6 +143,7 @@ impl Gui {
         }
 
         // Moves children from their local coordinate space to the global one.
+        // Round their positions if configured to do so.
         for id in node_ids {
             let node = self.get_mut(*id).unwrap();
             node.raw.region = node.raw.region.flip(!is_row);
@@ -277,6 +280,9 @@ impl Gui {
 
         // Paints widget
         painter.translation = node.raw.region.pos;
+        if self.round {
+            painter.translation = painter.translation.round();
+        }
         widget.paint(style, node.raw.canvas(), painter);
 
         // Renders children of node
