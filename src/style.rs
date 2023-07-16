@@ -116,7 +116,7 @@ impl Padding {
     }
 }
 
-/// Corner radiuses
+/// Corner radiuses.
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
 pub struct Corners {
     pub top_left: Val,

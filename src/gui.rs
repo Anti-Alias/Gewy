@@ -35,7 +35,7 @@ impl Gui {
     /// Returns id of node inserted.
     pub fn insert(&mut self, mut node: Node, parent_id: NodeId) -> Result<NodeId> {
 
-        // Stores node as a child of its parent
+        // Stores node as a child of another.
         node.parent_id = Some(parent_id);
         let node_id = self.storage.insert(node);
         let Some(parent) = self.storage.get_mut(parent_id) else {
@@ -48,9 +48,9 @@ impl Gui {
         unsafe {
             let gui = self as *mut Self;
             let gui = &mut *gui;
-            let children = NodeChildren { gui };
+            let children = NodeChildren { gui, parent_id: node_id };
             let node = self.storage.get_mut(node_id).unwrap();
-            node.widget.render_children(node_id, children)?;    // Using node past here is unsafe!!!
+            node.widget.children(children)?;
         };
 
         // Done
@@ -243,7 +243,6 @@ impl Gui {
         parent_height: f32,
         align_items: AlignItems
     ) {
-
         for id in group {
             let node = self.get_mut(*id).unwrap();
             let align_items = node.style.config.align_self.resolve(align_items);
@@ -278,7 +277,7 @@ impl Gui {
 
         // Paints widget
         painter.translation = node.raw.region.pos;
-        widget.render_self(style, node.raw.canvas(), painter);
+        widget.paint(style, node.raw.canvas(), painter);
 
         // Renders children of node
         let children: &[NodeId] = unsafe {
@@ -313,7 +312,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{Gui, Node};
+    use crate::{Gui, Node, NodeId};
 
     #[test]
     fn test_insert() {
@@ -338,6 +337,7 @@ mod test {
         let (root_id, mut nodes) = Gui::new(Node::default());
         let child_1_id = nodes.insert(Node::default(), root_id).unwrap();
         let child_2_id = nodes.insert(Node::default(), root_id).unwrap();
+        NodeId::default();
         
         let root = nodes.get(root_id).unwrap();
         assert_eq!(2, root.children().len());

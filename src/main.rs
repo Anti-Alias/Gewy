@@ -1,4 +1,4 @@
-use another_rust_ui::{App, Gui, Node, Style, Pane, Color, Val, Layout, Corners, Direction, JustifyContent, Config, AlignItems};
+use another_rust_ui::{App, Gui, Node, Style, Pane, Color, Val, Layout, Corners, Direction, JustifyContent, Config, AlignItems, Tag};
 
 const WINDOW_WIDTH: u32 = 512;
 const WINDOW_HEIGHT: u32 = 512;
@@ -12,8 +12,9 @@ fn main() {
 
 fn make_gui() -> Gui {
     
-    let root = Node::tagged(
-        "root",
+    let root = Node::new(
+        Pane,
+        Tag::None,
         Style {
             color: Color::RED,
             corners: Corners::all(Val::Px(10.0)),
@@ -24,12 +25,12 @@ fn make_gui() -> Gui {
                 ..Default::default()
             },
             ..Default::default()
-        },
-        Pane
+        }
     );
 
-    let blue = Node::tagged(
-        "blue",
+    let blue = Node::new(
+        Pane,
+        Tag::None,
         Style {
             color: Color::BLUE,
             corners: Corners::all(Val::Pc(0.1)),
@@ -40,12 +41,12 @@ fn make_gui() -> Gui {
                 ..Default::default()
             },
             ..Default::default()
-        },
-        Pane
+        }
     );
 
-    let green = Node::tagged(
-        "green",
+    let green = Node::new(
+        Pane,
+        Tag::None,
         Style {
             color: Color::GREEN,
             corners: Corners::all(Val::Px(10.0)),
@@ -56,8 +57,7 @@ fn make_gui() -> Gui {
                 ..Default::default()
             },
             ..Default::default()
-        },
-        Pane
+        }
     );
 
     let (root_id, mut gui) = Gui::new(root);

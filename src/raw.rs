@@ -1,7 +1,6 @@
 use crate::{Rect, Canvas};
 
 /// Stores raw values computed during the layout phase.
-/// Units of all values are stored in pixels.
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
 pub(crate) struct Raw {
     pub region: Rect,
