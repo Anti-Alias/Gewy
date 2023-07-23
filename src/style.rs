@@ -1,6 +1,7 @@
 use glam::Vec2;
 
 use crate::{Color, RawCorners, RawSides, RawMargin, RawPadding};
+use bitflags::bitflags;
 
 pub type Margin = Sides;
 pub type Padding = Sides;
@@ -58,6 +59,29 @@ impl Style {
 
     pub(crate) fn raw_padding(&self, parent_size: Vec2) -> RawPadding {
         Self::raw_sides(&self.padding, parent_size)
+    }
+
+    pub(crate) fn changes(&self, other: &Self) -> Changes {
+        let mut changes = Changes::NONE;
+
+        // Changes that affect everything
+        if self.width != other.width || self.height != other.height || self.margin != other.margin || self.padding != other.padding || self.config != other.config {
+            changes |= Changes::RECALCULATE;
+            changes |= Changes::RECALCULATE_CHILDREN;
+            changes |= Changes::REPAINT;
+        }
+
+        // Changes that only affect children
+        if self.layout != other.layout {
+            changes |= Changes::RECALCULATE_CHILDREN;
+            changes |= Changes::REPAINT;
+        }
+
+        // Changes that only affect self (aesthetic)
+        if self.color != other.color || self.corners != other.corners {
+            changes |= Changes::REPAINT;
+        }
+        changes
     }
 
     fn raw_sides(sides: &Sides, parent_size: Vec2) -> RawSides {
@@ -168,8 +192,7 @@ impl Corners {
 pub struct Layout {
     pub direction: Direction,
     pub justify_content: JustifyContent,
-    pub align_items: AlignItems,
-    pub align_content: AlignContent
+    pub align_items: AlignItems
 }
 
 
@@ -243,18 +266,6 @@ impl AlignSelf {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Debug, Default)]
-pub enum AlignContent {
-    #[default]
-    Stretch,
-    Center,
-    Start,
-    End,
-    SpaceBetween,
-    SpaceAround,
-    SpaceEvenly
-}
-
 /// Either an X or Y axis.
 pub trait Axis {
     fn get_x<T>(x_val: T, y_val: T) -> T;
@@ -277,4 +288,14 @@ impl Axis for YAxis {
     fn get_y<T>(x_val: T, _y_val: T) -> T { x_val }
     fn set_x<T>(_x_val: &mut T, y_val: &mut T, val: T) { *y_val = val }
     fn set_y<T>(x_val: &mut T, _y_val: &mut T, val: T) { *x_val = val }
+}
+
+bitflags! {
+    pub struct Changes: u8 {
+        const NONE =                    0b00000000;
+        const ALL =                     0b11111111;
+        const REPAINT =                 0b00000001;
+        const RECALCULATE_CHILDREN =    0b00000010;
+        const RECALCULATE =             0b00000100;
+    }
 }

@@ -1,6 +1,6 @@
 use wgpu::*;
 use wgpu::util::{DeviceExt, BufferInitDescriptor};
-use crate::{Color, write_to_buffer, View, GpuView};
+use crate::{Color, util::write_to_buffer, View, GpuView};
 use glam::Vec2;
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::{mem::size_of, f32::consts::TAU, fmt::Debug};
@@ -389,7 +389,7 @@ pub(crate) fn create_pipeline(device: &Device, texture_format: TextureFormat, de
 }
 
 fn radius_to_vertex_count(radius: f32) -> u32 {
-    let scaled = radius.powf(0.8);
+    let scaled = radius.powf(0.8) * 2.0;
     scaled as u32 + 8
 }
 

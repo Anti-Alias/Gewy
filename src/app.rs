@@ -5,7 +5,7 @@ use winit::event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCo
 use winit::event_loop::{EventLoop, ControlFlow};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
-use crate::{create_pipeline, Color, Gui, Painter};
+use crate::{create_pipeline, Color, Gui, Painter, PressEvent};
 
 pub struct App {
     pub width: u32,
@@ -102,6 +102,7 @@ struct State {
     config: SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     window: Window,
+    mouse_pos: Vec2,
     render_pipeline: RenderPipeline,
     gui: Gui,
     painter: Painter,
@@ -174,6 +175,7 @@ impl State {
             queue,
             config,
             size: window_size,
+            mouse_pos: Vec2::ZERO,
             render_pipeline,
             gui,
             painter,
@@ -199,8 +201,23 @@ impl State {
         }
     }
 
-    fn input(&mut self, _event: &WindowEvent) -> bool {
-        false
+    fn input(&mut self, event: &WindowEvent) -> bool {
+        match event {
+            WindowEvent::CursorMoved { position, .. } => {
+                self.mouse_pos = Vec2::new(position.x as f32, position.y as f32);
+                true
+            },
+            WindowEvent::MouseInput { state, .. } => {
+                if state == &ElementState::Pressed {
+                    let result = self.gui.fire_bubble(PressEvent, self.mouse_pos);
+                    if let Err(e) = result {
+                        eprintln!("Error occured during press: {}", e);
+                    }
+                }
+                true
+            }
+            _ => false
+        }
     }
 
     fn update(&mut self) {

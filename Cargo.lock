@@ -90,6 +90,7 @@ dependencies = [
 name = "another-rust-ui"
 version = "0.1.0"
 dependencies = [
+ "bitflags 2.3.3",
  "bytemuck",
  "derive_more",
  "env_logger",

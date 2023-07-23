@@ -1,12 +1,15 @@
+use std::collections::HashMap;
+
 use glam::Vec2;
 use slotmap::SlotMap;
-use crate::{GUiError, Result, NodeChildren, Node, NodeId, Rect, Layout, JustifyContent, extensions::VecExtensions, Painter, AlignItems, Canvas};
+use crate::{GuiError, Result, Subtree, Node, NodeId, Rect, Layout, JustifyContent, extensions::VecExtensions, Painter, AlignItems, Canvas, Name, Event, DynEvent, EventControl, NodeOrigin};
 
 /// Represents a graphical user interface, and a torage of [`Node`]s.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct Gui {
     storage: SlotMap<NodeId, Node>,
     root_id: NodeId,
+    named_index: HashMap<Name, Vec<NodeId>>,
     pub translation: Vec2,
     pub scale: f32,
     pub round: bool
@@ -15,17 +18,19 @@ pub struct Gui {
 impl Gui {
 
     /// Creates a new [`Gui`] instance alongside the id of the root node.
-    pub fn new(root: Node) -> (NodeId, Self) {
+    pub fn new(root: Node) -> Result<Self> {
         let mut storage = SlotMap::<NodeId, Node>::default();
         let root_id = storage.insert(root);
-        let slf = Self {
+        let mut slf = Self {
             storage,
             root_id,
+            named_index: HashMap::new(),
             translation: Vec2::ZERO,
             scale: 1.0,
             round: true
         };
-        (root_id, slf)
+        unsafe { slf.spawn_descendants(root_id)? };
+        Ok(slf)
     }
 
     pub fn with_translation(mut self, translation: Vec2) -> Self {
@@ -45,25 +50,19 @@ impl Gui {
 
     /// Inserts as a child of another.
     /// Returns id of node inserted.
-    pub fn insert(&mut self, mut node: Node, parent_id: NodeId) -> Result<NodeId> {
+    pub fn insert(&mut self, parent_id: NodeId, mut node: Node) -> Result<NodeId> {
 
         // Stores node as a child of another.
         node.parent_id = Some(parent_id);
         let node_id = self.storage.insert(node);
         let Some(parent) = self.storage.get_mut(parent_id) else {
             self.storage.remove(node_id);
-            return Err(GUiError::ParentNodeNotFound.into())
+            return Err(GuiError::ParentNodeNotFound.into())
         };
         parent.children_ids.push(node_id);
 
-        // Configures widget
-        unsafe {
-            let gui = self as *mut Self;
-            let gui = &mut *gui;
-            let children = NodeChildren { gui, parent_id: node_id };
-            let node = self.storage.get_mut(node_id).unwrap();
-            node.widget.children(children)?;
-        };
+        // Spawns descendants of node's widget
+        unsafe { self.spawn_descendants(node_id)? };
 
         // Done
         Ok(node_id)
@@ -92,16 +91,36 @@ impl Gui {
         Some(node)
     }
 
+    pub fn iter_named<'a>(&'a mut self, name: Name) -> impl Iterator<Item = &'a mut Node> + '_ {
+        let node_ids: &[NodeId] = unsafe { std::mem::transmute(self.ids_with_name(name)) };
+        NodeIteratorMut {
+            gui: self,
+            node_ids,
+            index: 0,
+        }
+    }
+
+    pub fn ids_with_name(&mut self, name: Name) -> &[NodeId] {
+        let ids = self.named_index.entry(name).or_insert_with(|| Vec::new());
+        &ids[..]
+    }
+
     pub fn get(&self, node_id: NodeId) -> Result<&Node> {
-        self.storage.get(node_id).ok_or(GUiError::NodeNotFound)
+        self.storage.get(node_id).ok_or(GuiError::NodeNotFound)
     }
     
     pub fn get_mut(&mut self, node_id: NodeId) -> Result<&mut Node> {
-        self.storage.get_mut(node_id).ok_or(GUiError::NodeNotFound)
+        self.storage.get_mut(node_id).ok_or(GuiError::NodeNotFound)
     }
 
-    pub unsafe fn get_mut_unsafe(&mut self, node_id: NodeId) -> Result<&'static mut Node> {
-        std::mem::transmute(self.get_mut(node_id))
+    pub unsafe fn get_unsafe<'a>(&self, node_id: NodeId) -> Result<&'a Node> {
+        let node = self.storage.get(node_id).ok_or(GuiError::NodeNotFound);
+        std::mem::transmute(node)
+    }
+
+    pub unsafe fn get_mut_unsafe<'a>(&mut self, node_id: NodeId) -> Result<&'a mut Node> {
+        let node = self.storage.get_mut(node_id).ok_or(GuiError::NodeNotFound);
+        std::mem::transmute(node)
     }
 
     pub fn resize(&mut self, size: Vec2) {
@@ -114,6 +133,69 @@ impl Gui {
             Rect::new(Vec2::ZERO, size),
             layout
         );
+    }
+
+    /// Fires an event on whatever node is touching the cursor, and bubbles up to the top.
+    pub fn fire_bubble(&mut self, event: impl Event, cursor: Vec2) -> Result<()> {
+        let Some(node_id) = self.node_touching(self.root_id, cursor) else {
+            return Ok(())
+        };
+        let event: DynEvent = event.into();
+        self.fire_bubble_for(node_id, &event)?;
+        Ok(())
+    }
+
+    /// Fires an event on a specific node, and bubbles up to the top.
+    pub fn fire_bubble_for<'a>(&'a mut self, mut node_id: NodeId, event: &DynEvent) -> Result<()> {
+        let mut node: &mut Node = unsafe { self.get_mut_unsafe(node_id)? };
+        let mut ctl = EventControl::new(event, None);
+        loop {
+            
+            // Widget of current node handles event.
+            let style = &mut node.style;
+            let subtree = Subtree { node_id, gui: self };
+            node.widget.event(style, subtree, &mut ctl)?;
+            
+            // Bubbles up.
+            let Some(ancestor_id) = node.ancestor_id else { break };
+            if ctl.stop { break }
+            ctl = EventControl::new(
+                event,
+                Some(NodeOrigin {
+                    id: node_id,
+                    name: node.name
+                })
+            );
+            node_id = ancestor_id;
+            node = unsafe { self.get_mut_unsafe(node_id).unwrap() };                
+        }
+        Ok(())
+    }
+
+    unsafe fn spawn_descendants(&mut self, node_id: NodeId) -> Result<()> {
+        let gui = self as *mut Self;
+        let gui = &mut *gui;
+        let node = self.storage.get_mut(node_id).unwrap();
+        node.widget.descendants(Subtree::new(node_id, gui))
+    }
+    
+    fn node_touching<'a>(&'a mut self, node_id: NodeId, cursor: Vec2) -> Option<NodeId> {
+        
+        // Checks children first
+        let node: &mut Node = unsafe { self.get_mut_unsafe(node_id).unwrap() };
+        for child_id in node.children_ids.iter().rev() {
+            if let Some(id) = self.node_touching(*child_id, cursor) {
+                return Some(id);
+            }
+        }
+
+        // Checks self
+        if node.raw.outer_region().contains(cursor) {
+            Some(node_id)
+        }
+        else {
+            None
+        }
     }
 
     fn compute_region<'a>(&'a mut self, node_id: NodeId) {
@@ -313,7 +395,7 @@ impl Gui {
             corners
         };
         painter.translation = paint_region.position;
-        widget.paint(style, canvas, painter);
+        widget.paint(style, painter, canvas);
 
         // Renders children of node
         let children: &[NodeId] = unsafe {
@@ -321,6 +403,27 @@ impl Gui {
         };
         for child_id in children {
             self.paint_node(*child_id, painter);
+        }
+    }
+}
+
+pub struct NodeIteratorMut<'a> {
+    gui: &'a mut Gui,
+    node_ids: &'a [NodeId],
+    index: usize
+}
+
+impl<'a> Iterator for NodeIteratorMut<'a> {
+    type Item = &'a mut Node;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.node_ids.len() {
+            return None;
+        }
+        let node_id = self.node_ids[self.index];
+        self.index += 1;
+        unsafe {
+            let node = self.gui.get_mut(node_id).unwrap();
+            Some(std::mem::transmute(node))
         }
     }
 }
@@ -352,40 +455,42 @@ mod test {
 
     #[test]
     fn test_insert() {
-        let (root_id, mut nodes) = Gui::new(Node::default());
-        let child_1_id = nodes.insert(Node::default(), root_id).unwrap();
-        let child_2_id = nodes.insert(Node::default(), root_id).unwrap();
+        let mut gui = Gui::new(Node::default()).unwrap();
+        let root_id = gui.root_id;
+        let child_1_id = gui.insert(root_id, Node::default()).unwrap();
+        let child_2_id = gui.insert(root_id, Node::default()).unwrap();
         
-        let root = nodes.get(root_id).unwrap();
+        let root = gui.get(root_id).unwrap();
         assert_eq!(2, root.children().len());
 
-        let child_1 = nodes.get(child_1_id).unwrap();
+        let child_1 = gui.get(child_1_id).unwrap();
         assert_eq!(0, child_1.children().len());
         assert_eq!(Some(root_id), child_1.parent());
 
-        let child_2 = nodes.get(child_2_id).unwrap();
+        let child_2 = gui.get(child_2_id).unwrap();
         assert_eq!(0, child_2.children().len());
         assert_eq!(Some(root_id), child_2.parent());
     }
 
     #[test]
     fn test_remove() {
-        let (root_id, mut nodes) = Gui::new(Node::default());
-        let child_1_id = nodes.insert(Node::default(), root_id).unwrap();
-        let child_2_id = nodes.insert(Node::default(), root_id).unwrap();
+        let mut gui = Gui::new(Node::default()).unwrap();
+        let root_id = gui.root_id;
+        let child_1_id = gui.insert(root_id, Node::default()).unwrap();
+        let child_2_id = gui.insert(root_id, Node::default()).unwrap();
         NodeId::default();
         
-        let root = nodes.get(root_id).unwrap();
+        let root = gui.get(root_id).unwrap();
         assert_eq!(2, root.children().len());
 
-        nodes.remove(child_1_id).unwrap();
-        let root = nodes.get(root_id).unwrap();
+        gui.remove(child_1_id).unwrap();
+        let root = gui.get(root_id).unwrap();
         assert_eq!(1, root.children().len());
 
-        nodes.remove(child_2_id).unwrap();
-        let root = nodes.get(root_id).unwrap();
+        gui.remove(child_2_id).unwrap();
+        let root = gui.get(root_id).unwrap();
         assert_eq!(0, root.children().len());
         
-        assert!(nodes.remove(root_id).is_none());
+        assert!(gui.remove(root_id).is_none());
     }
 }

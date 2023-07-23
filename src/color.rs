@@ -9,10 +9,13 @@ pub struct Color { r: f32, g: f32, b: f32, a: f32 }
 impl Color {
     pub const BLACK: Color = Color::new(0.0, 0.0, 0.0, 1.0);
     pub const WHITE: Color = Color::new(1.0, 1.0, 1.0, 1.0);
+    pub const DARK_GRAY: Color = Color::new(0.25, 0.25, 0.25, 1.0);
     pub const GRAY: Color = Color::new(0.5, 0.5, 0.5, 1.0);
+    pub const LIGHT_GRAY: Color = Color::new(0.75, 0.75, 0.75, 1.0);
     pub const RED: Color = Color::new(1.0, 0.0, 0.0, 1.0);
     pub const GREEN: Color = Color::new(0.0, 1.0, 0.0, 1.0);
     pub const BLUE: Color = Color::new(0.0, 0.0, 1.0, 1.0);
+    pub const LIGHT_BLUE: Color = Color::new(0.5, 0.5, 1.0, 1.0);
     pub const YELLOW: Color = Color::new(1.0, 1.0, 0.0, 1.0);
     pub const PINK: Color = Color::new(1.0, 0.0, 1.0, 1.0);
     pub const TEAL: Color = Color::new(0.0, 1.0, 1.0, 1.0);

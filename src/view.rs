@@ -2,7 +2,7 @@ use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3, Vec2};
 use wgpu::{*, util::{BufferInitDescriptor, DeviceExt}};
 
-use crate::write_to_buffer;
+use crate::util::write_to_buffer;
 
 /// Represents the "view" or "camera" that determines where polygons fall on the screen.
 #[repr(C)]

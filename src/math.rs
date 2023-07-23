@@ -29,4 +29,13 @@ impl Rect {
             size: (self.size / unit).round() * unit
         }
     }
+
+    pub fn contains(&self, point: Vec2) -> bool {
+        let tl = self.position;
+        let br = self.position + self.size;
+        point.x >= tl.x &&
+        point.y >= tl.y &&
+        point.x <= br.x &&
+        point.y <= br.y
+    }
 }

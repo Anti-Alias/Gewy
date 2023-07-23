@@ -13,4 +13,5 @@ derive_more = "0.99"
 env_logger = "0.10"
 log = "0.4"
 pollster = "0.3.0"
+bitflags = "2.3.3"
 
