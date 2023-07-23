@@ -9,9 +9,10 @@ mod app;
 mod err;
 mod math;
 mod view;
-pub mod util;
 mod raw;
 mod extensions;
+pub mod util;
+pub mod dsl;
 
 pub use node::*;
 pub use gui::*;

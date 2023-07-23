@@ -23,7 +23,7 @@ fn make_gui() -> Gui {
     );
     let button = Node::from_widget(RadioButton::default());
 
-    let mut gui = Gui::new(root).unwrap();
+    let mut gui = Gui::new(root);
     let root_id = gui.root_id();
     let _button_id = gui.insert(root_id, button).unwrap();
 

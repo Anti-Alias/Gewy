@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use glam::Vec2;
 use slotmap::SlotMap;
-use crate::{GuiError, Result, Subtree, Node, NodeId, Rect, Layout, JustifyContent, extensions::VecExtensions, Painter, AlignItems, Canvas, Name, Event, DynEvent, EventControl, NodeOrigin};
+use crate::*;
+use crate::extensions::VecExtensions;
 
 /// Represents a graphical user interface, and a torage of [`Node`]s.
 #[derive(Default)]
@@ -16,11 +17,10 @@ pub struct Gui {
 }
 
 impl Gui {
-
     /// Creates a new [`Gui`] instance alongside the id of the root node.
-    pub fn new(root: Node) -> Result<Self> {
+    pub fn new(root_node: Node) -> Self {
         let mut storage = SlotMap::<NodeId, Node>::default();
-        let root_id = storage.insert(root);
+        let root_id = storage.insert(root_node);
         let mut slf = Self {
             storage,
             root_id,
@@ -29,8 +29,8 @@ impl Gui {
             scale: 1.0,
             round: true
         };
-        unsafe { slf.spawn_descendants(root_id)? };
-        Ok(slf)
+        unsafe { slf.spawn_descendants(root_id) };
+        slf
     }
 
     pub fn with_translation(mut self, translation: Vec2) -> Self {
@@ -62,7 +62,7 @@ impl Gui {
         parent.children_ids.push(node_id);
 
         // Spawns descendants of node's widget
-        unsafe { self.spawn_descendants(node_id)? };
+        unsafe { self.spawn_descendants(node_id) };
 
         // Done
         Ok(node_id)
@@ -153,8 +153,8 @@ impl Gui {
             
             // Widget of current node handles event.
             let style = &mut node.style;
-            let subtree = Subtree { node_id, gui: self };
-            node.widget.event(style, subtree, &mut ctl)?;
+            let children = Children::new(node_id, self);
+            node.widget.event(style, children, &mut ctl)?;
             
             // Bubbles up.
             let Some(ancestor_id) = node.ancestor_id else { break };
@@ -172,11 +172,11 @@ impl Gui {
         Ok(())
     }
 
-    unsafe fn spawn_descendants(&mut self, node_id: NodeId) -> Result<()> {
+    unsafe fn spawn_descendants(&mut self, node_id: NodeId) {
         let gui = self as *mut Self;
         let gui = &mut *gui;
         let node = self.storage.get_mut(node_id).unwrap();
-        node.widget.descendants(Subtree::new(node_id, gui))
+        node.widget.children(Children::new(node_id, gui));
     }
     
     fn node_touching<'a>(&'a mut self, node_id: NodeId, cursor: Vec2) -> Option<NodeId> {
@@ -455,7 +455,7 @@ mod test {
 
     #[test]
     fn test_insert() {
-        let mut gui = Gui::new(Node::default()).unwrap();
+        let mut gui = Gui::new(Node::default());
         let root_id = gui.root_id;
         let child_1_id = gui.insert(root_id, Node::default()).unwrap();
         let child_2_id = gui.insert(root_id, Node::default()).unwrap();
@@ -474,7 +474,7 @@ mod test {
 
     #[test]
     fn test_remove() {
-        let mut gui = Gui::new(Node::default()).unwrap();
+        let mut gui = Gui::new(Node::default());
         let root_id = gui.root_id;
         let child_1_id = gui.insert(root_id, Node::default()).unwrap();
         let child_2_id = gui.insert(root_id, Node::default()).unwrap();

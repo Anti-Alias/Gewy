@@ -1,24 +1,14 @@
 use another_rust_ui::*;
+use another_rust_ui::dsl::*;
 
 fn main() {
-    let gui = make_gui();
-    App::new(gui, 512, 512).start();
-}
-
-
-fn make_gui() -> Gui {
     let root = Node::from_widget(Root);
-    let gui = Gui::new(root).unwrap();
-    gui
+    let gui = Gui::new(root);
+    App::new(gui, 512, 512).start();
 }
 
 pub struct Root;
 impl Widget for Root {
-
-    fn event(&mut self, _style: &mut Style, _subtree: Subtree, _ctl: &mut EventControl) -> Result<()> {
-        println!("Root clicked");
-        Ok(())
-    }
 
     fn style(&self, s: &mut Style) {
         s.color = Color::RED;
@@ -28,33 +18,39 @@ impl Widget for Root {
         s.layout.direction = Direction::Row;
     }
 
-    fn descendants(&self, mut subtree: Subtree) -> Result<()> {
-        // Blue child
-        subtree.insert(subtree.widget_id(), Node::new(
-            Pane,
-            Style {
-                color: Color::BLUE,
-                corners: Corners::all(Val::Px(10.0)),
-                width: Val::Px(64.0),   
-                height: Val::Px(64.0),
-                ..Default::default()
-            }
-        ))?;
-        // Green child
-        subtree.insert(subtree.widget_id(), Node::new(
-            Pane,
-            Style {
-                color: Color::GREEN,
-                corners: Corners::all(Val::Px(10.0)),
-                width: Val::Px(128.0),
-                height: Val::Px(128.0),
-                ..Default::default()
-            }
-        ))?;
-        Ok(())
+    fn children(&self, mut children: Children) {
+        let c = &mut children;
+        rect((c_round, c_blue), c);
+        pane((c_round, c_green, c_centered), c, |c| {
+            radio_button((c_round, c_button), c);
+            radio_button((c_round, c_button), c);
+        });
     }
+}
 
-    fn paint(&self, style: &Style, painter: &mut Painter, canvas: Canvas) {
-        util::paint_pane(style, painter, canvas);
-    }
+// -------- Classes --------
+fn c_round(s: &mut Style) {
+    s.corners = Corners::all(Val::Px(5.0));
+}
+
+fn c_centered(s: &mut Style) {
+    s.layout.justify_content = JustifyContent::Center;
+    s.layout.align_items = AlignItems::Center;
+}
+
+fn c_blue(s: &mut Style) {
+    s.color = Color::BLUE;
+    s.width = Val::Px(64.0);  
+    s.height = Val::Px(64.0);
+}
+
+fn c_green(s: &mut Style) {
+    s.color = Color::GREEN;
+    s.width = Val::Px(128.0);  
+    s.height = Val::Px(128.0);
+    s.layout.direction = Direction::Column;
+}
+
+fn c_button(s: &mut Style) {
+    s.margin = Margin::all(Val::Px(5.0));
 }

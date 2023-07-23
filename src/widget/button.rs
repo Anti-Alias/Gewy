@@ -4,8 +4,6 @@ const BACKGROUND: Color = Color::LIGHT_GRAY;
 const UNSELECTED: Color = Color::DARK_GRAY;
 const SELECTED: Color = Color::BLACK;
 
-const STEVE: Name = 0;
-
 #[derive(Clone, Default, Debug)]
 pub struct RadioButton {
     pub selected: bool,
@@ -16,22 +14,6 @@ impl Widget for RadioButton {
     fn style<'n>(&self, style: &mut Style) {
         style.width = Val::Px(17.0);
         style.height = Val::Px(17.0);
-    }
-
-    fn event(&mut self, _style: &mut Style, mut _subtree: Subtree, ctl: &mut EventControl) -> Result<()> {
-        if let Some((event, origin)) = ctl.event::<ReleaseEvent>(STEVE) {
-            self.selected = true;
-            ctl.repaint = true;
-        }
-        else if let Some((event, origin)) = ctl.event::<EnterEvent>(STEVE) {
-            self.entered = true;
-            ctl.repaint = true;
-        }
-        else if let Some((event, origin)) = ctl.event::<ReleaseEvent>(STEVE) {
-            self.entered = false;
-            ctl.repaint = true;
-        }
-        Ok(())
     }
 
     fn paint(&self, _style: &Style, painter: &mut Painter, canvas: Canvas) {
