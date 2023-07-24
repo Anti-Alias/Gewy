@@ -1,7 +1,7 @@
 #![windows_subsystem = "windows"]
 
-use another_rust_ui::*;
-use another_rust_ui::dsl::*;
+use gewy::*;
+use gewy::dsl::*;
 
 fn main() {
     let root = Node::from_widget(Root);
