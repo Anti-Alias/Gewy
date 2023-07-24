@@ -61,29 +61,6 @@ impl Style {
         Self::raw_sides(&self.padding, parent_size)
     }
 
-    pub(crate) fn changes(&self, other: &Self) -> Changes {
-        let mut changes = Changes::NONE;
-
-        // Changes that affect everything
-        if self.width != other.width || self.height != other.height || self.margin != other.margin || self.padding != other.padding || self.config != other.config {
-            changes |= Changes::RECALCULATE;
-            changes |= Changes::RECALCULATE_CHILDREN;
-            changes |= Changes::REPAINT;
-        }
-
-        // Changes that only affect children
-        if self.layout != other.layout {
-            changes |= Changes::RECALCULATE_CHILDREN;
-            changes |= Changes::REPAINT;
-        }
-
-        // Changes that only affect self (aesthetic)
-        if self.color != other.color || self.corners != other.corners {
-            changes |= Changes::REPAINT;
-        }
-        changes
-    }
-
     fn raw_sides(sides: &Sides, parent_size: Vec2) -> RawSides {
         RawSides {
             top: sides.top.to_raw(parent_size.y),

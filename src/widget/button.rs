@@ -11,6 +11,18 @@ pub struct RadioButton {
 }
 impl Widget for RadioButton {
 
+    fn event(&mut self, _style: &mut Style, _children: Children, ctl: &mut EventControl) -> Result<()> {
+        if ctl.is_event::<PressEvent>() {
+            ctl.press();
+        }
+        else if ctl.is_event::<ReleaseEvent>() {
+            self.selected = !self.selected;
+            ctl.stop();
+            ctl.repaint();
+        }
+        Ok(())
+    }
+
     fn style<'n>(&self, style: &mut Style) {
         style.width = Val::Px(17.0);
         style.height = Val::Px(17.0);
@@ -20,6 +32,7 @@ impl Widget for RadioButton {
         let old_color = painter.color;
 
         let center = canvas.size * 0.5;
+
         let outer_radius = center.min_element();
         let inner_radius = outer_radius * 0.75;
         let dot_radius = inner_radius * 0.75;

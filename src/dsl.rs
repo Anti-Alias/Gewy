@@ -134,11 +134,7 @@ where
     }
 }
 
-pub fn pane(
-    class: impl StyleClass,
-    children: &mut Children,
-    children_fn: impl FnOnce(&mut Children)
-) -> NodeId {
+pub fn pane(class: impl StyleClass, children: &mut Children, children_fn: impl FnOnce(&mut Children)) -> NodeId {
     
     // Builds node
     let mut node = Node::from_widget(Pane);
@@ -150,10 +146,7 @@ pub fn pane(
     children.node_id()
 }
 
-pub fn rect(
-    class: impl StyleClass,
-    children: &mut Children
-) -> NodeId {
+pub fn rect(class: impl StyleClass, children: &mut Children) -> NodeId {
     let mut node = Node::from_widget(Pane);
     class.apply(&mut node.style);
     let children = children.insert(node);

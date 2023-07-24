@@ -1,11 +1,11 @@
 use glam::Vec2;
 use wgpu::*;
 use winit::window::WindowBuilder;
-use winit::event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode};
+use winit::event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode, MouseButton};
 use winit::event_loop::{EventLoop, ControlFlow};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
-use crate::{create_pipeline, Color, Gui, Painter, PressEvent};
+use crate::{create_pipeline, Color, Gui, Painter};
 
 pub struct App {
     pub width: u32,
@@ -102,7 +102,6 @@ struct State {
     config: SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     window: Window,
-    mouse_pos: Vec2,
     render_pipeline: RenderPipeline,
     gui: Gui,
     painter: Painter,
@@ -175,7 +174,6 @@ impl State {
             queue,
             config,
             size: window_size,
-            mouse_pos: Vec2::ZERO,
             render_pipeline,
             gui,
             painter,
@@ -203,21 +201,40 @@ impl State {
 
     fn input(&mut self, event: &WindowEvent) -> bool {
         match event {
-            WindowEvent::CursorMoved { position, .. } => {
-                self.mouse_pos = Vec2::new(position.x as f32, position.y as f32);
-                true
-            },
-            WindowEvent::MouseInput { state, .. } => {
-                if state == &ElementState::Pressed {
-                    let result = self.gui.fire_bubble(PressEvent, self.mouse_pos);
-                    if let Err(e) = result {
-                        eprintln!("Error occured during press: {}", e);
-                    }
+            WindowEvent::CursorEntered { .. } => {
+                let result = self.gui.mapping().enter_cursor();
+                if let Err(err) = result {
+                    eprintln!("WindowEvent::CursorEntered caused an error: {}", err);
                 }
-                true
-            }
-            _ => false
+            },
+            WindowEvent::CursorLeft { .. } => {
+                let result = self.gui.mapping().exit_cursor();
+                if let Err(err) = result {
+                    eprintln!("WindowEvent::CursorLeft caused an error: {}", err);
+                }
+            },
+            WindowEvent::CursorMoved { position, .. } => {
+                let position = Vec2::new(position.x as f32, position.y as f32);
+                let result = self.gui.mapping().move_cursor(position);
+                if let Err(err) = result {
+                    eprintln!("WindowEvent::CursorMoved caused an error: {}", err);
+                }
+            },
+            WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. } => {
+                let result = self.gui.mapping().press(crate::MouseButton::Left);
+                if let Err(err) = result {
+                    eprintln!("WindowEvent::MouseInput caused an error: {}", err);
+                }
+            },
+            WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Left, .. } => {
+                let result = self.gui.mapping().release(crate::MouseButton::Left);
+                if let Err(err) = result {
+                    eprintln!("WindowEvent::MouseInput caused an error: {}", err);
+                }
+            },
+            _ => return false
         }
+        true
     }
 
     fn update(&mut self) {

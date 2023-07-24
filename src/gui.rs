@@ -11,6 +11,8 @@ pub struct Gui {
     storage: SlotMap<NodeId, Node>,
     root_id: NodeId,
     named_index: HashMap<Name, Vec<NodeId>>,
+    pub(crate) pressed_id: Option<NodeId>,
+    pub(crate) cursor: Cursor,
     pub translation: Vec2,
     pub scale: f32,
     pub round: bool
@@ -25,6 +27,8 @@ impl Gui {
             storage,
             root_id,
             named_index: HashMap::new(),
+            pressed_id: None,
+            cursor: Cursor::default(),
             translation: Vec2::ZERO,
             scale: 1.0,
             round: true
@@ -135,41 +139,113 @@ impl Gui {
         );
     }
 
-    /// Fires an event on whatever node is touching the cursor, and bubbles up to the top.
-    pub fn fire_bubble(&mut self, event: impl Event, cursor: Vec2) -> Result<()> {
-        let Some(node_id) = self.node_touching(self.root_id, cursor) else {
+    /// Fires an event on whatever node is touching the point, and bubbles that event up to the root node.
+    pub fn fire_bubble_at(&mut self, event: impl Event, point: Vec2) -> Result<()> {
+        let Some(node_id) = self.node_touching(self.root_id, point) else {
             return Ok(())
         };
-        let event: DynEvent = event.into();
-        self.fire_bubble_for(node_id, &event)?;
+        self.fire_bubble(event, node_id)?;
         Ok(())
     }
 
-    /// Fires an event on a specific node, and bubbles up to the top.
-    pub fn fire_bubble_for<'a>(&'a mut self, mut node_id: NodeId, event: &DynEvent) -> Result<()> {
+    /// Fires an event on a specific node, and bubbles that event up to the root node.
+    pub fn fire_bubble<'a>(&'a mut self, event: impl Into<DynEvent>, mut node_id: NodeId) -> Result<()> {
+        let event: DynEvent = event.into();
         let mut node: &mut Node = unsafe { self.get_mut_unsafe(node_id)? };
-        let mut ctl = EventControl::new(event, None);
+        let mut ctl = EventControl::new(&event, None);
         loop {
             
-            // Widget of current node handles event.
+            // Has Widget of current node handle event.
             let style = &mut node.style;
             let children = Children::new(node_id, self);
             node.widget.event(style, children, &mut ctl)?;
+            let stop_propagation = ctl.stop;
+
+            // Handles output of EventControl.
+            let Some(ancestor_id) = node.ancestor_id else { break };
+            Self::handle_control_output(self, ctl, node_id, ancestor_id)?;
             
             // Bubbles up.
-            let Some(ancestor_id) = node.ancestor_id else { break };
-            if ctl.stop { break }
+            if stop_propagation { break }
             ctl = EventControl::new(
-                event,
+                &event,
                 Some(NodeOrigin {
                     id: node_id,
                     name: node.name
                 })
             );
             node_id = ancestor_id;
-            node = unsafe { self.get_mut_unsafe(node_id).unwrap() };                
+            node = unsafe { self.get_mut_unsafe(node_id).unwrap() };        
         }
         Ok(())
+    }
+
+    // Fires an event globally.
+    pub fn fire_global(&mut self, event: impl Event) -> Result<()> {
+        let event = DynEvent::new(event);
+        let storage: &mut SlotMap<NodeId, Node> = unsafe { std::mem::transmute(&mut self.storage) };
+        for (node_id, node) in storage.iter_mut() {
+
+            // Has widget of current node handle event.
+            let children = Children { root_id: node_id, node_id, gui: self };
+            let mut ctl = EventControl::new(&event, None);
+            node.widget.event(&mut node.style, children, &mut ctl)?;
+
+            // Handles output of EventControl.
+            let Some(ancestor_id) = node.ancestor_id else { break };
+            Self::handle_control_output(self, ctl, node_id, ancestor_id)?;
+        }
+        Ok(())
+    }
+
+    fn handle_control_output(&mut self, ctl: EventControl, node_id: NodeId, ancestor_id: NodeId) -> Result<()> {
+        if ctl.pressed {
+            self.pressed_id = Some(node_id);
+        }
+        for out_event in ctl.outgoing_events {
+            self.fire_bubble(out_event, ancestor_id)?;
+        }
+        Ok(())
+    }
+
+    /// Provides object for mapping external inputs to internal events.
+    pub fn mapping(&mut self) -> InputMapping<'_> {
+        InputMapping { gui: self }
+    }
+
+    /// Gets the id of the node touching the position specified.
+    pub fn get_touching_id(&self, position: Vec2) -> Option<NodeId> {
+        self.node_touching(self.root_id, position)
+    }
+
+    /// Gets the node touching the position specified.
+    pub fn get_touching(&self, position: Vec2) -> Option<&Node> {
+        self
+            .node_touching(self.root_id, position)
+            .map(|id| unsafe { self.get_unsafe(id).unwrap() } )
+    }
+
+    /// Gets the node touching the position specified.
+    pub fn get_touching_mut(&mut self, position: Vec2) -> Option<&mut Node> {
+        self
+            .node_touching(self.root_id, position)
+            .map(|id| unsafe { self.get_mut_unsafe(id).unwrap() } )
+    }
+
+    // Gets ID of node touching 
+    fn node_touching<'a>(&'a self, node_id: NodeId, cursor: Vec2) -> Option<NodeId> {
+        let node: &Node = unsafe { self.get_unsafe(node_id).unwrap() };
+        for child_id in node.children_ids.iter().rev() {
+            if let Some(id) = self.node_touching(*child_id, cursor) {
+                return Some(id);
+            }
+        }
+        if node.raw.outer_region().contains(cursor) {
+            Some(node_id)
+        }
+        else {
+            None
+        }
     }
 
     unsafe fn spawn_descendants(&mut self, node_id: NodeId) {
@@ -177,25 +253,6 @@ impl Gui {
         let gui = &mut *gui;
         let node = self.storage.get_mut(node_id).unwrap();
         node.widget.children(Children::new(node_id, gui));
-    }
-    
-    fn node_touching<'a>(&'a mut self, node_id: NodeId, cursor: Vec2) -> Option<NodeId> {
-        
-        // Checks children first
-        let node: &mut Node = unsafe { self.get_mut_unsafe(node_id).unwrap() };
-        for child_id in node.children_ids.iter().rev() {
-            if let Some(id) = self.node_touching(*child_id, cursor) {
-                return Some(id);
-            }
-        }
-
-        // Checks self
-        if node.raw.outer_region().contains(cursor) {
-            Some(node_id)
-        }
-        else {
-            None
-        }
     }
 
     fn compute_region<'a>(&'a mut self, node_id: NodeId) {

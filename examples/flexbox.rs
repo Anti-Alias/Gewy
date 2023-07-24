@@ -13,7 +13,7 @@ impl Widget for Root {
     fn style(&self, s: &mut Style) {
         s.color = Color::RED;
         s.corners = Corners::all(Val::Px(10.0));
-        s.layout.justify_content = JustifyContent::SpaceEvenly;
+        s.layout.justify_content = JustifyContent::SpaceAround;
         s.layout.align_items = AlignItems::Center;
         s.layout.direction = Direction::Row;
     }
@@ -25,6 +25,10 @@ impl Widget for Root {
             radio_button((c_round, c_button), c);
             radio_button((c_round, c_button), c);
         });
+    }
+
+    fn paint(&self, style: &Style, painter: &mut Painter, canvas: Canvas) {
+        util::paint_pane(style, painter, canvas);
     }
 }
 
