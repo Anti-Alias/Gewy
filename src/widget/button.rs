@@ -12,7 +12,13 @@ pub struct RadioButton {
 impl Widget for RadioButton {
 
     fn event(&mut self, _style: &mut Style, _children: Children, ctl: &mut EventControl) -> Result<()> {
-        if ctl.is_event::<PressEvent>() {
+        if ctl.is_event::<EnterEvent>() {
+            ctl.set_cursor_icon(CursorIcon::Hand);
+        }
+        else if ctl.is_event::<ExitEvent>() {
+            ctl.set_cursor_icon(CursorIcon::Default);
+        }
+        else if ctl.is_event::<PressEvent>() {
             ctl.press();
         }
         else if ctl.is_event::<ReleaseEvent>() {

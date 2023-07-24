@@ -1,6 +1,6 @@
 use glam::Vec2;
 use wgpu::*;
-use winit::window::WindowBuilder;
+use winit::window::{WindowBuilder, CursorIcon};
 use winit::event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode, MouseButton};
 use winit::event_loop::{EventLoop, ControlFlow};
 use winit::dpi::PhysicalSize;
@@ -17,7 +17,7 @@ pub struct WinitApp {
 
 /// Stores the application in a window.
 impl WinitApp {
-    /// Starts the application in a window with the resolution specified.
+
     pub fn new(gui: Gui, width: u32, height: u32) -> Self {
         Self {
             width,
@@ -247,6 +247,11 @@ impl State {
         self.gui.paint(&mut self.painter);
         self.painter.flush(&self.device, &self.queue);
 
+        // Maps cursor icon
+        if let Some(cursor_icon) = self.gui.mapping().take_cursor_icon() {
+            self.window.set_cursor_icon(cursor_icon.into());
+        }
+
         // Gets surface texture
         let output = self.surface.get_current_texture()?;
         let tex_view = output.texture.create_view(&TextureViewDescriptor::default());
@@ -315,5 +320,47 @@ impl State {
         if debug { features |= Features::POLYGON_MODE_LINE }
         features |= Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES;
         features
+    }
+}
+
+impl From<crate::CursorIcon> for CursorIcon {
+    fn from(value: crate::CursorIcon) -> Self {
+        match value {
+            crate::CursorIcon::Default => CursorIcon::Default,
+            crate::CursorIcon::Crosshair => CursorIcon::Default,
+            crate::CursorIcon::Hand => CursorIcon::Hand,
+            crate::CursorIcon::Arrow => CursorIcon::Arrow,
+            crate::CursorIcon::Move => CursorIcon::Move,
+            crate::CursorIcon::Text => CursorIcon::Text,
+            crate::CursorIcon::Wait => CursorIcon::Wait,
+            crate::CursorIcon::Help => CursorIcon::Help,
+            crate::CursorIcon::Progress => CursorIcon::Progress,
+            crate::CursorIcon::NotAllowed => CursorIcon::NotAllowed,
+            crate::CursorIcon::ContextMenu => CursorIcon::ContextMenu,
+            crate::CursorIcon::Cell => CursorIcon::Cell,
+            crate::CursorIcon::VerticalText => CursorIcon::VerticalText,
+            crate::CursorIcon::Alias => CursorIcon::Alias,
+            crate::CursorIcon::Copy => CursorIcon::Copy,
+            crate::CursorIcon::NoDrop => CursorIcon::NoDrop,
+            crate::CursorIcon::Grab => CursorIcon::Grab,
+            crate::CursorIcon::Grabbing => CursorIcon::Grabbing,
+            crate::CursorIcon::AllScroll => CursorIcon::AllScroll,
+            crate::CursorIcon::ZoomIn => CursorIcon::ZoomIn,
+            crate::CursorIcon::ZoomOut => CursorIcon::ZoomOut,
+            crate::CursorIcon::EResize => CursorIcon::EResize,
+            crate::CursorIcon::NResize => CursorIcon::NResize,
+            crate::CursorIcon::NeResize => CursorIcon::NeResize,
+            crate::CursorIcon::NwResize => CursorIcon::NwResize,
+            crate::CursorIcon::SResize => CursorIcon::SResize,
+            crate::CursorIcon::SeResize => CursorIcon::SeResize,
+            crate::CursorIcon::SwResize => CursorIcon::SwResize,
+            crate::CursorIcon::WResize => CursorIcon::WResize,
+            crate::CursorIcon::EwResize => CursorIcon::EwResize,
+            crate::CursorIcon::NsResize => CursorIcon::NsResize,
+            crate::CursorIcon::NeswResize => CursorIcon::NeswResize,
+            crate::CursorIcon::NwseResize => CursorIcon::NwseResize,
+            crate::CursorIcon::ColResize => CursorIcon::ColResize,
+            crate::CursorIcon::RowResize => CursorIcon::RowResize
+        }
     }
 }

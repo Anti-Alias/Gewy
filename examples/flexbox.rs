@@ -1,5 +1,3 @@
-#![windows_subsystem = "windows"]
-
 use gewy::*;
 use gewy::dsl::*;
 use gewy::winit::*;
