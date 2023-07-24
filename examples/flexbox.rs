@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use another_rust_ui::*;
 use another_rust_ui::dsl::*;
 

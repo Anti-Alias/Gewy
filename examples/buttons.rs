@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 use another_rust_ui::*;
 
 fn main() {
