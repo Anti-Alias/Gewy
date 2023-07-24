@@ -39,37 +39,57 @@ impl Widget for Pane {
 
 /// Represents the children of a [`Node`].
 pub struct Children<'n> {
-    pub(crate) root_id: NodeId,
-    pub(crate) node_id: NodeId,
+    pub(crate) ancestor_id: NodeId,
+    pub(crate) parent_id: NodeId,
     pub(crate) gui: &'n mut Gui
 }
 
 impl<'n> Children<'n> {
 
-    pub(crate) fn new(node_id: NodeId, gui: &'n mut Gui) -> Self {
-        Self { root_id: node_id, node_id, gui }
+    pub(crate) fn new(ancestor_id: NodeId, gui: &'n mut Gui) -> Self {
+        Self { ancestor_id, parent_id: ancestor_id, gui }
     }
     
     /// ID of the widget's node to build children under.
     pub fn node_id(&self) -> NodeId {
-        self.root_id
+        self.ancestor_id
     }
 
+    /// Inserts a node and inherits the ancestor.
     pub fn insert(&mut self, mut node: Node) -> Children {
-        node.ancestor_id = Some(self.root_id);
-        let child_id = self.gui.insert(self.node_id, node).unwrap();
+        node.ancestor_id = Some(self.ancestor_id);
+        let parent_id = self.gui.insert(self.parent_id, node).unwrap();
         Children { 
-            root_id: self.root_id,
-            node_id: child_id,
+            ancestor_id: self.ancestor_id,
+            parent_id,
             gui: self.gui
         }
     }
 
-    pub fn get(&mut self, node_id: NodeId) -> Result<&mut Node> {
-        if node_id == self.root_id {
+    /// Inserts a node and becomes the ancestor of its children.
+    pub fn insert_ancestor(&mut self, mut node: Node) -> Children {
+        node.ancestor_id = Some(self.ancestor_id);
+        let parent_id = self.gui.insert(self.parent_id, node).unwrap();
+        Children { 
+            ancestor_id: parent_id,
+            parent_id,
+            gui: self.gui
+        }
+    }
+    
+    pub fn get(&self, node_id: NodeId) -> Result<&Node> {
+        let node = self.gui.get(node_id)?;
+        if node.ancestor_id != Some(self.ancestor_id) {
             return Err(GuiError::NodeNotFound);
         }
+        Ok(node)
+    }
+
+    pub fn get_mut(&mut self, node_id: NodeId) -> Result<&mut Node> {
         let node = self.gui.get_mut(node_id)?;
+        if node.ancestor_id != Some(self.ancestor_id) {
+            return Err(GuiError::NodeNotFound);
+        }
         Ok(node)
     }
 
@@ -78,7 +98,7 @@ impl<'n> Children<'n> {
     }
     
     pub fn remove(&mut self, node_id: NodeId) -> Option<Node> {
-        if node_id == self.root_id {
+        if node_id == self.ancestor_id {
             return None;
         }
         self.gui.remove(node_id)
@@ -87,7 +107,7 @@ impl<'n> Children<'n> {
     pub fn iter_named(&mut self, name: Name) -> impl Iterator<Item = &mut Node> + '_ {
         self.gui
             .iter_named(name)
-            .filter(|node| node.ancestor_id == Some(self.root_id))
+            .filter(|node| node.ancestor_id == Some(self.ancestor_id))
     }
 }
 

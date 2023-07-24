@@ -2,11 +2,12 @@
 
 use gewy::*;
 use gewy::dsl::*;
+use gewy::winit::*;
 
 fn main() {
     let root = Node::from_widget(Root);
     let gui = Gui::new(root);
-    App::new(gui, 512, 512).start();
+    WinitApp::new(gui, 512, 512).start();
 }
 
 pub struct Root;

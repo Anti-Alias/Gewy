@@ -187,7 +187,7 @@ impl Gui {
         for (node_id, node) in storage.iter_mut() {
 
             // Has widget of current node handle event.
-            let children = Children { root_id: node_id, node_id, gui: self };
+            let children = Children { ancestor_id: node_id, parent_id: node_id, gui: self };
             let mut ctl = EventControl::new(&event, None);
             node.widget.event(&mut node.style, children, &mut ctl)?;
 

@@ -7,7 +7,7 @@ use winit::dpi::PhysicalSize;
 use winit::window::Window;
 use crate::{create_pipeline, Color, Gui, Painter};
 
-pub struct App {
+pub struct WinitApp {
     pub width: u32,
     pub height: u32,
     pub gui: Gui,
@@ -16,7 +16,7 @@ pub struct App {
 }
 
 /// Stores the application in a window.
-impl App {
+impl WinitApp {
     /// Starts the application in a window with the resolution specified.
     pub fn new(gui: Gui, width: u32, height: u32) -> Self {
         Self {
