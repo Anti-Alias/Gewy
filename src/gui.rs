@@ -13,6 +13,7 @@ pub struct Gui {
     named_index: HashMap<Name, Vec<NodeId>>,
     pub(crate) pressed_id: Option<NodeId>,
     pub(crate) cursor: Cursor,
+    pub(crate) next_cursor_icon: Option<CursorIcon>,
     pub translation: Vec2,
     pub scale: f32,
     pub round: bool
@@ -29,6 +30,7 @@ impl Gui {
             named_index: HashMap::new(),
             pressed_id: None,
             cursor: Cursor::default(),
+            next_cursor_icon: None,
             translation: Vec2::ZERO,
             scale: 1.0,
             round: true
@@ -161,9 +163,14 @@ impl Gui {
             node.widget.event(style, children, &mut ctl)?;
             let stop_propagation = ctl.stop;
 
-            // Handles output of EventControl.
+            // Sets cursor
+            if let Some(icon) = ctl.cursor_icon {
+                self.next_cursor_icon = Some(icon);
+            }
+        
+            // Fires outgoing events.
             let Some(ancestor_id) = node.ancestor_id else { break };
-            Self::handle_control_output(self, ctl, node_id, ancestor_id)?;
+            Self::fire_outgoing_events(self, ctl, node_id, ancestor_id)?;
             
             // Bubbles up.
             if stop_propagation { break }
@@ -191,14 +198,19 @@ impl Gui {
             let mut ctl = EventControl::new(&event, None);
             node.widget.event(&mut node.style, children, &mut ctl)?;
 
+            // Sets cursor
+            if let Some(icon) = ctl.cursor_icon {
+                self.next_cursor_icon = Some(icon);
+            }
+
             // Handles output of EventControl.
             let Some(ancestor_id) = node.ancestor_id else { break };
-            Self::handle_control_output(self, ctl, node_id, ancestor_id)?;
+            Self::fire_outgoing_events(self, ctl, node_id, ancestor_id)?;
         }
         Ok(())
     }
 
-    fn handle_control_output(&mut self, ctl: EventControl, node_id: NodeId, ancestor_id: NodeId) -> Result<()> {
+    fn fire_outgoing_events(&mut self, ctl: EventControl, node_id: NodeId, ancestor_id: NodeId) -> Result<()> {
         if ctl.pressed {
             self.pressed_id = Some(node_id);
         }
@@ -484,7 +496,6 @@ impl<'a> Iterator for NodeIteratorMut<'a> {
         }
     }
 }
-
 
 /// Helper function that allows for iterating either forwards backwards based on a boolean flag.
 /// I hate this :(

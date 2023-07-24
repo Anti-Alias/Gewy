@@ -1,7 +1,6 @@
-
 use std::any::Any;
 
-use crate::{NodeId, Name};
+use crate::{NodeId, Name, CursorIcon};
 
 /// Any event type.
 pub trait Event: Any + 'static {}
@@ -39,12 +38,9 @@ pub struct NodeOrigin {
 pub struct EventControl<'e> {
     /// Event that was fired.
     pub event: &'e DynEvent,
-    /// Info about the descendant node that fired the event, if any.
     pub(crate) origin: Option<NodeOrigin>,
-    /// Writable. Events to be fired after handling this event.
     pub(crate) outgoing_events: Vec<DynEvent>,
-    /// Writable. If set to true, event will not be handled by ancestors.
-    /// This has not affect on global events.
+    pub(crate) cursor_icon: Option<CursorIcon>,
     pub(crate) stop: bool,
     pub(crate) repaint: bool,
     pub(crate) pressed: bool
@@ -57,6 +53,7 @@ impl<'e> EventControl<'e> {
             event,
             origin,
             outgoing_events: Vec::new(),
+            cursor_icon: None,
             stop: false,
             repaint: false,
             pressed: false
@@ -108,6 +105,11 @@ impl<'e> EventControl<'e> {
     /// Marks the [`crate::Node`] of the [`crate::Widget`] as "pressed".
     pub fn press(&mut self) {
         self.pressed = true;
+    }
+
+    /// Sets the next desired cursor icon.
+    pub fn set_cursor_icon(&mut self, cursor_icon: CursorIcon) {
+        self.cursor_icon = Some(cursor_icon);
     }
 }
 
