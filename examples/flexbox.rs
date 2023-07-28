@@ -13,7 +13,7 @@ impl Widget for Root {
 
     fn style(&self, s: &mut Style) {
         s.color = Color::GRAY;
-        s.layout.direction = Direction::Row;
+        s.layout.direction = Direction::Column;
         s.layout.justify_content = JustifyContent::SpaceBetween;
         s.layout.align_items = AlignItems::Center;
     }
@@ -36,7 +36,7 @@ impl Widget for Root {
 
 // -------- Classes --------
 fn c_round(s: &mut Style) {
-    s.corners = Corners::all(Val::Px(5.0));
+    s.corners = Corners::all(Val::Px(10.0));
 }
 
 fn c_red(s: &mut Style) {
@@ -53,9 +53,9 @@ fn c_green(s: &mut Style) {
     s.color = Color::GREEN;
     s.size.width = Val::Px(128.0);  
     s.size.height = Val::Px(128.0);
-    s.padding.left = Val::Px(32.0);
-    s.padding.right = Val::Px(32.0);
     s.config.shrink = 2.0;
+    s.padding.left = Val::Px(128.0);
+    s.padding.right = Val::Px(128.0);
     s.layout.justify_content = JustifyContent::Center;
     s.layout.align_items = AlignItems::Center;
 }

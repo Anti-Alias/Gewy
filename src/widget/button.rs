@@ -35,6 +35,7 @@ impl Widget for RadioButton {
     }
 
     fn paint(&self, _style: &Style, painter: &mut Painter, canvas: Canvas) {
+
         let old_color = painter.color;
 
         let center = canvas.size * 0.5;

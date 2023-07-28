@@ -311,6 +311,8 @@ impl Gui {
             let node = self.get_mut(*child_id).unwrap();
             node.raw.region = node.raw.region.flip(!is_row);
             node.raw.region.position += parent_region.position;
+            node.raw.margin = node.raw.margin.rotate_left(!is_row);
+            node.raw.padding = node.raw.padding.rotate_left(!is_row);
             self.layout_children_of(*child_id);
         }
     }
@@ -324,10 +326,10 @@ impl Gui {
         let group_ids = RevIter::new(group, is_reverse);
         for id in group_ids {
             let node = self.get_mut(*id).unwrap();
-            node.raw.margin = node.style.raw_margin(parent_size);
-            node.raw.padding = node.style.raw_padding(parent_size);
-            let raw_margin = node.raw.margin.size().flip(!is_row);
-            let raw_padding = node.raw.padding.size().flip(!is_row);
+            node.raw.margin = node.style.raw_margin(parent_size, is_row);
+            node.raw.padding = node.style.raw_padding(parent_size, is_row);
+            let raw_margin = node.raw.margin.size();
+            let raw_padding = node.raw.padding.size();
             let raw_basis = node.style.raw_basis(parent_size.x, is_row);
             let outer_width = raw_basis + raw_padding.x + raw_margin.x;
             let outer_height = node.style.raw_height(parent_size.y, is_row) + raw_margin.y + raw_padding.y;

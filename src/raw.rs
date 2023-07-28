@@ -85,4 +85,27 @@ impl RawSides {
     pub fn all(&self) -> (f32, f32, f32, f32) {
         (self.top(), self.right(), self.bottom(), self.left())
     }
+
+    pub fn rotate_right(self, rotate: bool) -> Self {
+        if rotate {
+            return Self {
+                top: self.left,
+                right: self.top,
+                bottom: self.right,
+                left: self.bottom
+            }
+        }
+        self
+    }
+    pub fn rotate_left(self, rotate: bool) -> Self {
+        if rotate {
+            return Self {
+                top: self.right,
+                right: self.bottom,
+                bottom: self.left,
+                left: self.top
+            }
+        }
+        self
+    }
 }

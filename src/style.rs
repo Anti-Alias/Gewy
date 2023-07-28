@@ -54,21 +54,21 @@ impl Style {
         }
     }
 
-    pub(crate) fn raw_margin(&self, parent_size: Vec2) -> RawMargin {
-        Self::raw_sides(&self.margin, parent_size)
+    pub(crate) fn raw_margin(&self, parent_size: Vec2, is_row: bool) -> RawMargin {
+        Self::raw_sides(&self.margin, parent_size, is_row)
     }
 
-    pub(crate) fn raw_padding(&self, parent_size: Vec2) -> RawPadding {
-        Self::raw_sides(&self.padding, parent_size)
+    pub(crate) fn raw_padding(&self, parent_size: Vec2, is_row: bool) -> RawPadding {
+        Self::raw_sides(&self.padding, parent_size, is_row)
     }
 
-    fn raw_sides(sides: &Sides, parent_size: Vec2) -> RawSides {
+    fn raw_sides(sides: &Sides, parent_size: Vec2, is_row: bool) -> RawSides {
         RawSides {
             top: sides.top.to_raw(parent_size.y).max(0.0),
             right: sides.right.to_raw(parent_size.x).max(0.0),
             bottom: sides.bottom.to_raw(parent_size.y).max(0.0),
             left: sides.left.to_raw(parent_size.x).max(0.0)
-        }
+        }.rotate_right(!is_row)
     }
 }
 
