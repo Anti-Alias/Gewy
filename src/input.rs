@@ -2,7 +2,7 @@ use crate::{Gui, Result, GuiEnterEvent, GuiExitEvent, PressEvent, ReleaseEvent, 
 use glam::Vec2;
 
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
-pub struct Cursor {
+pub(crate) struct Cursor {
     pub position: Vec2,
     pub left_pressed: bool,
     pub right_pressed: bool,
@@ -55,7 +55,7 @@ pub enum CursorIcon {
 }
 
 /**
- * Contains API for mapping the external window manager to the internal gui.
+ * API for mapping the external window manager to the internal gui and vice versa.
  */
 pub struct InputMapping<'a> {
     pub(crate) gui: &'a mut Gui

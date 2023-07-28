@@ -16,24 +16,34 @@ pub(crate) struct Raw {
 
 impl Raw {
 
-    // Region with content + padding (no margin)
-    pub fn outer_region(&self) -> Rect {
+    // Region of the node containing the content + padding.
+    pub fn padding_region(&self) -> Rect {
         let margin = &self.margin;
         let top_left = Vec2::new(margin.left, margin.top);
         let bottom_right = Vec2::new(margin.right, margin.bottom);
         let position = self.region.position + top_left;
         let size = self.region.size - top_left - bottom_right;
-        Rect { position, size }
+        Rect { position, size }.non_negative()
     }
 
-    // Region where children reside (no margin, no padding).
-    pub fn inner_region(&self) -> Rect {
+    // Region of the node containing only the content.
+    pub fn content_region(&self) -> Rect {
         let (margin, padding) = (&self.margin, &self.padding);
         let top_left = Vec2::new(margin.left, margin.top) + Vec2::new(padding.left, padding.top);
         let bottom_right = Vec2::new(margin.right, margin.bottom) + Vec2::new(padding.right, padding.bottom);
         let position = self.region.position + top_left;
         let size = self.region.size - top_left - bottom_right;
-        Rect { position, size }
+        Rect { position, size }.non_negative()
+    }
+
+    // Width of the content region.
+    pub fn content_width(&self) -> f32 {
+        self.region.size.x - (self.margin.left + self.margin.right + self.padding.left + self.padding.right)
+    }
+
+    // Sets the content width.
+    pub fn set_content_width(&mut self, content_width: f32) {
+        self.region.size.x = content_width + (self.margin.left + self.margin.right + self.padding.left + self.padding.right);
     }
 }
 

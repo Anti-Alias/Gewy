@@ -19,31 +19,31 @@ pub struct Style {
 }
 
 impl Style {
-    pub(crate) fn raw_width(&self, parent_width: f32, is_row: bool) -> f32 {
+    pub(crate) fn raw_width(&self, parent_width: f32, raw_margin: f32, raw_padding: f32, is_row: bool) -> f32 {
         let width = if is_row { self.width } else { self.height };
         match width {
-            Val::Px(px) => px,
-            Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_width,
+            Val::Px(px) => px.max(0.0) + raw_margin + raw_padding,
+            Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_width + raw_margin + raw_padding,
             Val::Auto => parent_width
         }
     }
-    pub(crate) fn raw_height(&self, parent_height: f32, is_row: bool) -> f32 {
+    pub(crate) fn raw_height(&self, parent_height: f32, raw_margin: f32, raw_padding: f32, is_row: bool) -> f32 {
         let height = if is_row { self.height } else { self.width };
         match height {
-            Val::Px(px) => px,
-            Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_height,
+            Val::Px(px) => px.max(0.0) + raw_margin + raw_padding,
+            Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_height + raw_margin + raw_padding,
             Val::Auto => parent_height
         }
     }
-    pub(crate) fn raw_basis(&self, parent_width: f32, is_row: bool) -> f32 {
+    pub(crate) fn raw_basis(&self, parent_width: f32, raw_margin: f32, raw_padding: f32, is_row: bool) -> f32 {
         match self.config.basis {
-            Val::Px(px) => px,
+            Val::Px(px) => px.max(0.0),
             Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_width,
-            Val::Auto => self.raw_width(parent_width, is_row)
+            Val::Auto => self.raw_width(parent_width, raw_margin, raw_padding, is_row)
         }
     }
-    pub(crate) fn raw_corners(&self, parent_size: Vec2) -> RawCorners {
-        let parent_size = parent_size.min_element();
+    pub(crate) fn raw_corners(&self, element_size: Vec2) -> RawCorners {
+        let parent_size = element_size.min_element();
         let corners = &self.corners;
         RawCorners {
             top_left: corners.top_left.to_raw(parent_size),
@@ -63,10 +63,10 @@ impl Style {
 
     fn raw_sides(sides: &Sides, parent_size: Vec2) -> RawSides {
         RawSides {
-            top: sides.top.to_raw(parent_size.y),
-            right: sides.right.to_raw(parent_size.x),
-            bottom: sides.bottom.to_raw(parent_size.y),
-            left: sides.left.to_raw(parent_size.x)
+            top: sides.top.to_raw(parent_size.y).max(0.0),
+            right: sides.right.to_raw(parent_size.x).max(0.0),
+            bottom: sides.bottom.to_raw(parent_size.y).max(0.0),
+            left: sides.left.to_raw(parent_size.x).max(0.0)
         }
     }
 }
@@ -193,12 +193,23 @@ impl Direction {
 }
 
 /// Configuration for items in a [`Layout`].
-#[derive(Clone, PartialEq, Debug, Default)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Config {
     pub grow: f32,
     pub shrink: f32,
     pub basis: Val,
     pub align_self: AlignSelf
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            grow: 0.0,
+            shrink: 1.0,
+            basis: Val::default(),
+            align_self: AlignSelf::default()
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Debug, Default)]
@@ -232,9 +243,9 @@ pub enum AlignSelf {
 }
 
 impl AlignSelf {
-    pub fn resolve(self, parent_align: AlignItems) -> AlignItems {
+    pub fn to_align_items(self, auto_value: AlignItems) -> AlignItems {
         match self {
-            AlignSelf::Auto => parent_align,
+            AlignSelf::Auto => auto_value,
             AlignSelf::Stretch => AlignItems::Stretch,
             AlignSelf::Center => AlignItems::Center,
             AlignSelf::Start => AlignItems::Start,

@@ -1,5 +1,7 @@
 use glam::{Vec2, Vec2Swizzles};
 
+use crate::extensions::VecExtensions;
+
 /// Simple rectangle struct.
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
 pub struct Rect {
@@ -37,5 +39,12 @@ impl Rect {
         point.y >= tl.y &&
         point.x <= br.x &&
         point.y <= br.y
+    }
+
+    pub fn non_negative(&self) -> Self {
+        Self {
+            position: self.position.non_negative(),
+            size: self.size.non_negative()
+        }
     }
 }

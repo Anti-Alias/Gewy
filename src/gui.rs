@@ -4,6 +4,10 @@ use glam::Vec2;
 use slotmap::SlotMap;
 use crate::*;
 use crate::extensions::VecExtensions;
+use crate::util::RevIter;
+
+const EPS: f32 = 0.001;
+const MAX_SHRINK_LOOPS: usize = 12;
 
 /// Represents a graphical user interface, and a torage of [`Node`]s.
 #[derive(Default)]
@@ -119,6 +123,41 @@ impl Gui {
         self.storage.get_mut(node_id).ok_or(GuiError::NodeNotFound)
     }
 
+    /// Gets the id of the node touching the position specified.
+    pub fn get_touching_id(&self, position: Vec2) -> Option<NodeId> {
+        self.node_touching(self.root_id, position)
+    }
+
+    /// Gets the node touching the position specified.
+    pub fn get_touching(&self, position: Vec2) -> Option<&Node> {
+        self
+            .node_touching(self.root_id, position)
+            .map(|id| unsafe { self.get_unsafe(id).unwrap() } )
+    }
+
+    /// Gets the node touching the position specified.
+    pub fn get_touching_mut(&mut self, position: Vec2) -> Option<&mut Node> {
+        self
+            .node_touching(self.root_id, position)
+            .map(|id| unsafe { self.get_mut_unsafe(id).unwrap() } )
+    }
+
+    // Gets ID of node touching 
+    fn node_touching<'a>(&'a self, node_id: NodeId, cursor: Vec2) -> Option<NodeId> {
+        let node: &Node = unsafe { self.get_unsafe(node_id).unwrap() };
+        for child_id in node.children_ids.iter().rev() {
+            if let Some(id) = self.node_touching(*child_id, cursor) {
+                return Some(id);
+            }
+        }
+        if node.raw.padding_region().contains(cursor) {
+            Some(node_id)
+        }
+        else {
+            None
+        }
+    }
+
     pub unsafe fn get_unsafe<'a>(&self, node_id: NodeId) -> Result<&'a Node> {
         let node = self.storage.get(node_id).ok_or(GuiError::NodeNotFound);
         std::mem::transmute(node)
@@ -127,18 +166,6 @@ impl Gui {
     pub unsafe fn get_mut_unsafe<'a>(&mut self, node_id: NodeId) -> Result<&'a mut Node> {
         let node = self.storage.get_mut(node_id).ok_or(GuiError::NodeNotFound);
         std::mem::transmute(node)
-    }
-
-    pub fn resize(&mut self, size: Vec2) {
-        let layout = Layout {
-            justify_content: JustifyContent::Center,
-            ..Default::default()
-        };
-        self.compute_regions(
-            &[self.root_id],
-            Rect::new(Vec2::ZERO, size),
-            layout
-        );
     }
 
     /// Fires an event on whatever node is touching the point, and bubbles that event up to the root node.
@@ -210,56 +237,31 @@ impl Gui {
         Ok(())
     }
 
-    fn fire_outgoing_events(&mut self, ctl: EventControl, node_id: NodeId, ancestor_id: NodeId) -> Result<()> {
-        if ctl.pressed {
-            self.pressed_id = Some(node_id);
-        }
-        for out_event in ctl.outgoing_events {
-            self.fire_bubble(out_event, ancestor_id)?;
-        }
-        Ok(())
+    pub fn resize(&mut self, size: Vec2) {
+        let layout = Layout {
+            justify_content: JustifyContent::Center,
+            ..Default::default()
+        };
+        self.layout_children(
+            &[self.root_id],
+            Rect::new(Vec2::ZERO, size),
+            layout
+        );
     }
+
 
     /// Provides object for mapping external inputs to internal events.
     pub fn mapping(&mut self) -> InputMapping<'_> {
         InputMapping { gui: self }
     }
 
-    /// Gets the id of the node touching the position specified.
-    pub fn get_touching_id(&self, position: Vec2) -> Option<NodeId> {
-        self.node_touching(self.root_id, position)
+    /// Paints this GUI using the supplied painter.
+    pub fn paint(&mut self, painter: &mut Painter) {
+        self.paint_node(self.root_id, painter);
     }
 
-    /// Gets the node touching the position specified.
-    pub fn get_touching(&self, position: Vec2) -> Option<&Node> {
-        self
-            .node_touching(self.root_id, position)
-            .map(|id| unsafe { self.get_unsafe(id).unwrap() } )
-    }
-
-    /// Gets the node touching the position specified.
-    pub fn get_touching_mut(&mut self, position: Vec2) -> Option<&mut Node> {
-        self
-            .node_touching(self.root_id, position)
-            .map(|id| unsafe { self.get_mut_unsafe(id).unwrap() } )
-    }
-
-    // Gets ID of node touching 
-    fn node_touching<'a>(&'a self, node_id: NodeId, cursor: Vec2) -> Option<NodeId> {
-        let node: &Node = unsafe { self.get_unsafe(node_id).unwrap() };
-        for child_id in node.children_ids.iter().rev() {
-            if let Some(id) = self.node_touching(*child_id, cursor) {
-                return Some(id);
-            }
-        }
-        if node.raw.outer_region().contains(cursor) {
-            Some(node_id)
-        }
-        else {
-            None
-        }
-    }
-
+    // Spawns descendants of the node specified using its widget.
+    // Assumes the node has been spawned, but has no children.
     unsafe fn spawn_descendants(&mut self, node_id: NodeId) {
         let gui = self as *mut Self;
         let gui = &mut *gui;
@@ -267,7 +269,8 @@ impl Gui {
         node.widget.children(Children::new(node_id, gui));
     }
 
-    fn compute_region<'a>(&'a mut self, node_id: NodeId) {
+    // Computes the raw regions of this node's children.
+    fn layout_children_of<'a>(&'a mut self, node_id: NodeId) {
         
         // Gets children of node
         let node = self.get(node_id).unwrap();
@@ -276,72 +279,69 @@ impl Gui {
 
         // Computes regions of children
         let layout = node.style.layout;
-        let region = node.raw.inner_region();
-        self.compute_regions(children, region, layout);
+        let region = node.raw.content_region();
+        self.layout_children(children, region, layout);
     }
 
-    fn compute_regions(
+    // Computes the raw regions of a group of nodes given their parent's raw region.
+    fn layout_children(
         &mut self,
-        node_ids: &[NodeId],
+        child_ids: &[NodeId],
         parent_region: Rect,
         parent_layout: Layout
     ) {
+        // Unpack parent metadata.
         let is_reverse = parent_layout.direction.is_reverse();
         let is_row = parent_layout.direction.is_row();
         let parent_size = parent_region.size.flip(!is_row);
 
-        // Determines "packed values" of this group.
-        let (group_width, grow_total) = self.pack_group(node_ids, parent_size, is_row, is_reverse);
-
-        // Either grows or shinks on primary axis.
-        if group_width <= parent_size.x {
-            self.grow_group(node_ids, group_width, grow_total, parent_size.x, parent_layout.justify_content, is_reverse);
+        // Lays out children local to their parent's coordinate space.
+        let (group_width, grow_total) = self.pack_group(child_ids, parent_size, is_row, is_reverse);
+        if group_width <= parent_size.x + EPS {
+            self.grow_group(child_ids, group_width, grow_total, parent_size.x, parent_layout.justify_content, is_reverse);
         }
         else {
-            log::warn!("Shrinking not yet supported");
+            self.shrink_group(child_ids, group_width, parent_size.x, is_reverse, MAX_SHRINK_LOOPS);
         }
+        self.align_group(child_ids, parent_size.y, parent_size.y, parent_layout.align_items);
+        self.decorate_group(child_ids);
 
-        // Aligns and decorates nodes.
-        self.align_group(node_ids, parent_size.y, parent_size.y, parent_layout.align_items);
-        self.decorate_group(node_ids);
-
-        // Moves children from their local coordinate space to the global one.
-        // Round their positions if configured to do so.
-        for id in node_ids {
-            let node = self.get_mut(*id).unwrap();
+        // Transforms children to the global coordinate space.
+        for child_id in child_ids {
+            let node = self.get_mut(*child_id).unwrap();
             node.raw.region = node.raw.region.flip(!is_row);
             node.raw.region.position += parent_region.position;
-            self.compute_region(*id);
+            self.layout_children_of(*child_id);
         }
     }
 
+    // Packs elements from left to right, starting at the top-left, local to the parent's coordinate space: (0, 0) to (parent_size.x, parent_size.y).
+    // This simplifies the layout code later.
     fn pack_group(&mut self, group: &[NodeId], parent_size: Vec2, is_row: bool, is_reverse: bool) -> (f32, f32) {
 
-        // Computes "basis" and "grow" totals.
-        // Converts various properties to their "raw" values for later usage.
-        let mut current_x = 0.0;
+        let mut group_width = 0.0;
         let mut grow_total = 0.0;
-        let node_ids = group.iter();
-        for_each(node_ids, is_reverse, |id| {
+        let group_ids = RevIter::new(group, is_reverse);
+        for id in group_ids {
             let node = self.get_mut(*id).unwrap();
             node.raw.margin = node.style.raw_margin(parent_size);
             node.raw.padding = node.style.raw_padding(parent_size);
-            let raw_basis = node.style.raw_basis(parent_size.x, is_row);
             let raw_margin = node.raw.margin.size().flip(!is_row);
             let raw_padding = node.raw.padding.size().flip(!is_row);
-            let outer_width = raw_basis + raw_margin.x + raw_padding.x;
-            let outer_height = node.style.raw_height(parent_size.y, is_row) + raw_margin.y + raw_padding.y;
+            let raw_basis = node.style.raw_basis(parent_size.x, raw_margin.x, raw_padding.x, is_row);
+            let outer_width = raw_basis + raw_padding.x + raw_margin.x;
+            let outer_height = node.style.raw_height(parent_size.y, raw_margin.y, raw_padding.y, is_row);
             node.raw.region = Rect::new(
-                Vec2::new(current_x, 0.0),
+                Vec2::new(group_width, 0.0),
                 Vec2::new(outer_width, outer_height)
-            );
-            current_x += outer_width;
+            ).non_negative();
+            group_width += outer_width;
             grow_total += node.style.config.grow;
-        });
+        };
         grow_total = grow_total.max(1.0);
 
-        // Done
-        (current_x, grow_total)
+        // Returns sums
+        (group_width, grow_total)
     }
 
     // Grows "packed" children on the primary axis.
@@ -355,23 +355,21 @@ impl Gui {
         is_reverse: bool
     ) {
 
-        // Grows and offsets nodes horizontally.
-        let remaining_width = parent_width - group_width;
-        let mut current_x = 0.0;
-        let node_ids = group.iter();
-        for_each(node_ids, is_reverse, |id| {
+        // Calculates the width of each node.
+        let grow_width = parent_width - group_width;
+        let mut group_width = 0.0;
+        let group_ids = RevIter::new(group, is_reverse);
+        for id in group_ids {
             let node = self.get_mut(*id).unwrap();
             let grow_perc = node.style.config.grow.max(0.0) / grow_total;
-            let new_width = node.raw.region.size.x + grow_perc * remaining_width;
-            node.raw.region.position.x = current_x;
+            let new_width = node.raw.region.size.x + grow_perc * grow_width;
             node.raw.region.size.x = new_width;
-            current_x += new_width;
-        });
+            group_width += new_width;
+        };
 
         // Determines offset and spacing of nodes based on the layout.
-        let group_width = current_x;
         let (offset, spacing) = match justify_content {
-            JustifyContent::Start => return,
+            JustifyContent::Start => (0.0, 0.0),
             JustifyContent::End => (parent_width - group_width, 0.0),
             JustifyContent::Center => (parent_width/2.0 - group_width/2.0, 0.0),
             JustifyContent::SpaceBetween => {
@@ -394,31 +392,84 @@ impl Gui {
         };
 
         // Applies offset and spacing to nodes.
-        let id_iter = group.iter();
-        let mut spacing_accum = 0.0;
-        for_each(id_iter, is_reverse, |id| {
+        let mut x = offset;
+        let group_ids = RevIter::new(group, is_reverse);
+        for id in group_ids {
             let node = self.get_mut(*id).unwrap();
-            node.raw.region.position.x += offset + spacing_accum;
-            spacing_accum += spacing;
-        });
+            let node_width = node.raw.region.size.x;
+            node.raw.region.position.x = x;
+            x += node_width + spacing;
+        };
     }
 
-    // Aligns "packed" children on the secondary axis.
+    // Shrinks "packed" children on the primary axis.
+    fn shrink_group(
+        &mut self,
+        group: &[NodeId],
+        group_width: f32,
+        parent_width: f32,
+        is_reverse: bool,
+        max_loops: usize
+    ) {
+        
+        const EPSILON: f32 = 0.001;
+        let group_width_ratio = parent_width / group_width;
+        let shave = group_width - parent_width;
+        
+        // Calculates "scaled shave".
+        let mut scaled_shave = 0.0;
+        let node_ids = RevIter::new(group, is_reverse);
+        let mut nodes_shaved = 0;
+        for id in node_ids {
+            let node = self.get(*id).unwrap();
+            let (n_width, n_shrink) = (node.raw.content_width(), node.style.config.shrink);
+            if n_width > EPSILON { nodes_shaved += 1 } else { continue }
+            let n_shrunk_width = n_width * group_width_ratio;
+            let n_fair_shave = n_width - n_shrunk_width;
+            scaled_shave += n_fair_shave * n_shrink;
+        };
+
+        // Shaves off as much from the each node as possible and positions them side-by-side.
+        let shave_ratio = shave / scaled_shave;
+        let mut x = 0.0;
+        let node_ids = RevIter::new(group, is_reverse);
+        for id in node_ids {
+            let node = self.get_mut(*id).unwrap();
+            let (n_width, n_shrink) = (node.raw.content_width(), node.style.config.shrink);
+            let n_shrunk_width = n_width * group_width_ratio;
+            let n_fair_shave = n_width - n_shrunk_width;
+            let n_shave = n_fair_shave * n_shrink * shave_ratio;
+            let n_new_width = (n_width - n_shave).max(0.0);
+            node.raw.set_content_width(n_new_width);
+            node.raw.region.position.x = x;
+            x += node.raw.region.size.x;
+        };
+
+        // If still too big and at least one node was shaved in the last pass, redo the algo.
+        let shaved_group_width = x;
+        if max_loops == 0 {
+            eprintln!("Shrinking looped too many times");
+        }
+        if shaved_group_width > parent_width + EPS && nodes_shaved > 0 && max_loops > 0 {
+            self.shrink_group(group, shaved_group_width, parent_width, is_reverse, max_loops - 1);
+        }
+    }
+
+    // Aligns children on the secondary axis.
     fn align_group(
         &mut self,
         group: &[NodeId],
         group_height: f32,
         parent_height: f32,
-        align_items: AlignItems
+        parent_align_items: AlignItems
     ) {
         for id in group {
             let node = self.get_mut(*id).unwrap();
-            let align_items = node.style.config.align_self.resolve(align_items);
-            match align_items {
+            let node_align_self = node.style.config.align_self;
+            let node_align = node_align_self.to_align_items(parent_align_items);
+            match node_align {
                 AlignItems::Start => {},
-                AlignItems::Stretch => {
-                    node.raw.region.size.y = group_height;
-                },
+                AlignItems::Stretch => node.raw.region.size.y = group_height,
                 AlignItems::Center => {
                     let node_size = node.raw.region.size;
                     let node_height = node_size.y;
@@ -432,16 +483,22 @@ impl Gui {
         }
     }
 
-    // Decorates nodes that have been transformed.
     fn decorate_group(&mut self, group: &[NodeId]) {
         for id in group {
             let node = self.get_mut(*id).unwrap();
-            node.raw.corners = node.style.raw_corners(node.raw.outer_region().size);
+            let node_size = node.raw.padding_region().size;
+            node.raw.corners = node.style.raw_corners(node_size);
         }
     }
 
-    pub fn paint(&mut self, painter: &mut Painter) {
-        self.paint_node(self.root_id, painter);
+    fn fire_outgoing_events(&mut self, ctl: EventControl, node_id: NodeId, ancestor_id: NodeId) -> Result<()> {
+        if ctl.pressed {
+            self.pressed_id = Some(node_id);
+        }
+        for out_event in ctl.outgoing_events {
+            self.fire_bubble(out_event, ancestor_id)?;
+        }
+        Ok(())
     }
 
     fn paint_node(&mut self, node_id: NodeId, painter: &mut Painter) {
@@ -452,7 +509,7 @@ impl Gui {
         let style = &node.style;
 
         // Paints widget
-        let mut paint_region = node.raw.outer_region();
+        let mut paint_region = node.raw.padding_region();
         let mut corners = node.raw.corners;
         if self.round {
             let unit = 1.0/self.scale;
@@ -496,26 +553,6 @@ impl<'a> Iterator for NodeIteratorMut<'a> {
         }
     }
 }
-
-/// Helper function that allows for iterating either forwards backwards based on a boolean flag.
-/// I hate this :(
-fn for_each<I, T, F>(iter: I, reverse: bool, mut f: F)
-where
-    I: DoubleEndedIterator<Item = T>,
-    F: FnMut(T)
-{
-    if reverse {
-        for elem in iter.into_iter().rev() {
-            f(elem)
-        }
-    }
-    else {
-        for elem in iter {
-            f(elem)
-        }
-    }
-}
-
 
 #[cfg(test)]
 mod test {

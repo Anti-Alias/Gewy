@@ -28,3 +28,47 @@ pub(crate) fn write_to_buffer(
     }
     queue.write_buffer(&buffer, 0, source);
 }
+
+// Iterator over a slice that either travels forwards or backwards depending on a flag.
+pub(crate) struct RevIter<'s, T> {
+    index: isize,
+    direction: isize,
+    slice: &'s [T]
+}
+
+impl<'s, T: Copy> Iterator for RevIter<'s, T> {
+
+    type Item = &'s T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let index = self.index;
+        let uindex = self.index as usize;
+        if index < 0 || uindex == self.slice.len() {
+            None
+        }
+        else {
+            let result = unsafe { self.slice.get_unchecked(uindex)};
+            self.index += self.direction;
+            Some(result)
+        }
+    }
+}
+
+impl <'s, T> RevIter<'s, T> {
+    pub fn new(slice: &'s [T], is_reversed: bool) -> Self {
+        if is_reversed {
+            Self {
+                index: slice.len() as isize - 1,
+                direction: -1,
+                slice
+            }
+        }
+        else {
+            Self {
+                index: 0,
+                direction: 1,
+                slice
+            }
+        }
+    }
+}

@@ -12,20 +12,22 @@ pub struct Root;
 impl Widget for Root {
 
     fn style(&self, s: &mut Style) {
-        s.color = Color::RED;
-        s.corners = Corners::all(Val::Px(10.0));
-        s.layout.justify_content = JustifyContent::SpaceAround;
-        s.layout.align_items = AlignItems::Center;
+        s.color = Color::GRAY;
         s.layout.direction = Direction::Row;
+        s.layout.justify_content = JustifyContent::SpaceBetween;
+        s.layout.align_items = AlignItems::Center;
+        s.margin = Margin::all(Val::Px(40.0));
     }
 
     fn children(&self, mut children: Children) {
         let c = &mut children;
-        rect((c_round, c_blue), c);
-        pane((c_round, c_green, c_centered), c, |c| {
-            radio_button((c_round, c_button), c);
-            radio_button((c_round, c_button), c);
+        rect((c_red, c_round), c);
+        pane((c_green, c_round), c, |c| {
+            radio_button(c_button, c);
+            radio_button(c_button, c);
+            radio_button(c_button, c);
         });
+        rect((c_blue, c_round), c);
     }
 
     fn paint(&self, style: &Style, painter: &mut Painter, canvas: Canvas) {
@@ -38,22 +40,34 @@ fn c_round(s: &mut Style) {
     s.corners = Corners::all(Val::Px(5.0));
 }
 
-fn c_centered(s: &mut Style) {
-    s.layout.justify_content = JustifyContent::Center;
-    s.layout.align_items = AlignItems::Center;
-}
-
-fn c_blue(s: &mut Style) {
-    s.color = Color::BLUE;
-    s.width = Val::Px(64.0);  
-    s.height = Val::Px(64.0);
+fn c_red(s: &mut Style) {
+    s.color = Color::RED;
+    s.width = Val::Px(128.0);  
+    s.height = Val::Px(128.0);
+    s.padding.left = Val::Px(32.0);
+    s.padding.right = Val::Px(32.0);
+    s.layout.direction = Direction::Column;
+    s.config.shrink = 1.0;
 }
 
 fn c_green(s: &mut Style) {
     s.color = Color::GREEN;
     s.width = Val::Px(128.0);  
     s.height = Val::Px(128.0);
-    s.layout.direction = Direction::Column;
+    s.padding.left = Val::Px(32.0);
+    s.padding.right = Val::Px(32.0);
+    s.config.shrink = 2.0;
+    s.layout.justify_content = JustifyContent::Center;
+    s.layout.align_items = AlignItems::Center;
+}
+
+fn c_blue(s: &mut Style) {
+    s.color = Color::BLUE;
+    s.width = Val::Px(128.0);  
+    s.height = Val::Px(128.0);
+    s.padding.left = Val::Px(32.0);
+    s.padding.right = Val::Px(32.0);
+    s.config.shrink = 3.0;
 }
 
 fn c_button(s: &mut Style) {
