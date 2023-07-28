@@ -11,21 +11,21 @@ fn main() {
 pub struct Root;
 impl Widget for Root {
 
+    fn descendants(&self, d: &mut Descendants) {
+        rect((c_red, c_round), d);
+        pane((c_green, c_round), d, |d| {
+            radio_button(c_button, d);
+            radio_button(c_button, d);
+            radio_button(c_button, d);
+        });
+        rect((c_blue, c_round), d);
+    }
+
     fn style(&self, s: &mut Style) {
         s.color = Color::GRAY;
         s.layout.direction = Direction::Row;
         s.layout.justify_content = JustifyContent::SpaceBetween;
         s.layout.align_items = AlignItems::Center;
-    }
-
-    fn children(&self, c: &mut Children) {
-        rect((c_red, c_round), c);
-        pane((c_green, c_round), c, |c| {
-            radio_button(c_button, c);
-            radio_button(c_button, c);
-            radio_button(c_button, c);
-        });
-        rect((c_blue, c_round), c);
     }
 
     fn paint(&self, style: &Style, painter: &mut Painter, canvas: Canvas) {

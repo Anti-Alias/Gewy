@@ -15,10 +15,10 @@ pub trait Widget: Any + 'static {
 
     /// Spawns descendants, if any at all.
     /// Invoked after node insertion.
-    fn children(&self, _children: &mut Children) {}
+    fn descendants(&self, _descendants: &mut Descendants) {}
 
     /// Handles an event, and possibly fires a new one.
-    fn event(&mut self, _style: &mut Style, _children: &mut Children, _ctl: &mut EventControl) -> Result<()> {
+    fn event(&mut self, _style: &mut Style, _descendants: &mut Descendants, _ctl: &mut EventControl) -> Result<()> {
         Ok(())
     }
 
@@ -38,13 +38,13 @@ impl Widget for Pane {
 
 
 /// Represents the children of a [`Node`].
-pub struct Children<'n> {
+pub struct Descendants<'n> {
     pub(crate) ancestor_id: NodeId,
     pub(crate) parent_id: NodeId,
     pub(crate) gui: &'n mut Gui
 }
 
-impl<'n> Children<'n> {
+impl<'n> Descendants<'n> {
 
     pub(crate) fn new(ancestor_id: NodeId, gui: &'n mut Gui) -> Self {
         Self { ancestor_id, parent_id: ancestor_id, gui }
@@ -56,10 +56,10 @@ impl<'n> Children<'n> {
     }
 
     /// Inserts a node and inherits the ancestor.
-    pub fn insert(&mut self, mut node: Node) -> Children {
+    pub fn insert(&mut self, mut node: Node) -> Descendants {
         node.ancestor_id = Some(self.ancestor_id);
         let parent_id = self.gui.insert(self.parent_id, node).unwrap();
-        Children { 
+        Descendants { 
             ancestor_id: self.ancestor_id,
             parent_id,
             gui: self.gui
@@ -67,10 +67,10 @@ impl<'n> Children<'n> {
     }
 
     /// Inserts a node and becomes the ancestor of its children.
-    pub fn insert_ancestor(&mut self, mut node: Node) -> Children {
+    pub fn insert_ancestor(&mut self, mut node: Node) -> Descendants {
         node.ancestor_id = Some(self.ancestor_id);
         let parent_id = self.gui.insert(self.parent_id, node).unwrap();
-        Children { 
+        Descendants { 
             ancestor_id: parent_id,
             parent_id,
             gui: self.gui

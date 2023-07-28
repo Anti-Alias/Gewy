@@ -76,7 +76,7 @@ impl<'e> EventControl<'e> {
     }
 
     /// Returns [`Option::Some`] if the event type matches and the name of the node it originated from matches.
-    pub fn matches_event<E: Event>(&self, node_name: impl Into<Option<Name>>) -> Option<(&'e E, NodeOrigin)> {
+    pub fn as_matched_event<E: Event>(&self, node_name: impl Into<Option<Name>>) -> Option<(&'e E, NodeOrigin)> {
         let name = node_name.into();
         let event = self.event.as_event::<E>()?;
         let origin = self.origin?;

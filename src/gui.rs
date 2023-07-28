@@ -186,7 +186,7 @@ impl Gui {
             
             // Has Widget of current node handle event.
             let style = &mut node.style;
-            let mut children = Children::new(node_id, self);
+            let mut children = Descendants::new(node_id, self);
             node.widget.event(style, &mut children, &mut ctl)?;
             let stop_propagation = ctl.stop;
 
@@ -221,7 +221,7 @@ impl Gui {
         for (node_id, node) in storage.iter_mut() {
 
             // Has widget of current node handle event.
-            let mut children = Children { ancestor_id: node_id, parent_id: node_id, gui: self };
+            let mut children = Descendants { ancestor_id: node_id, parent_id: node_id, gui: self };
             let mut ctl = EventControl::new(&event, None);
             node.widget.event(&mut node.style, &mut children, &mut ctl)?;
 
@@ -266,7 +266,7 @@ impl Gui {
         let gui = self as *mut Self;
         let gui = &mut *gui;
         let node = self.storage.get_mut(node_id).unwrap();
-        node.widget.children(&mut Children::new(node_id, gui));
+        node.widget.descendants(&mut Descendants::new(node_id, gui));
     }
 
     // Computes the raw regions of this node's children.
@@ -513,7 +513,7 @@ impl Gui {
         let widget = &node.widget;
         let style = &node.style;
 
-        // Paints widget
+        // Creates canvas for widget to paint in
         let mut paint_region = node.raw.padding_region();
         let mut corners = node.raw.corners;
         if self.round {
@@ -525,8 +525,12 @@ impl Gui {
             size: paint_region.size,
             corners
         };
+
+        // Paints widget
+        let state = painter.push_state();
         painter.translation = paint_region.position;
         widget.paint(style, painter, canvas);
+        painter.pop_state(state);
 
         // Renders children of node
         let children: &[NodeId] = unsafe {

@@ -1,4 +1,4 @@
-use crate::{Style, Widget, Pane, Children, NodeId, Node, RadioButton};
+use crate::{Style, Widget, Pane, Descendants, NodeId, Node, RadioButton};
 
 pub trait Class<W> {
     fn apply(self, widget: &mut W, style: &mut Style);
@@ -134,23 +134,23 @@ where
     }
 }
 
-pub fn pane(class: impl StyleClass, children: &mut Children, children_fn: impl FnOnce(&mut Children)) -> NodeId {
+pub fn pane(class: impl StyleClass, descendants: &mut Descendants, descendants_fn: impl FnOnce(&mut Descendants)) -> NodeId {
     let mut node = Node::from_widget(Pane);
     class.apply(&mut node.style);
-    let mut children = children.insert(node);
-    children_fn(&mut children);
-    children.node_id()
+    let mut descendants = descendants.insert(node);
+    descendants_fn(&mut descendants);
+    descendants.node_id()
 }
 
-pub fn rect(class: impl StyleClass, children: &mut Children) -> NodeId {
+pub fn rect(class: impl StyleClass, descendants: &mut Descendants) -> NodeId {
     let mut node = Node::from_widget(Pane);
     class.apply(&mut node.style);
-    let children = children.insert(node);
-    children.node_id()
+    let descendants = descendants.insert(node);
+    descendants.node_id()
 }
 
-pub fn radio_button(class: impl StyleClass, children: &mut Children) -> NodeId {
+pub fn radio_button(class: impl StyleClass, descendants: &mut Descendants) -> NodeId {
     let mut node = Node::from_widget(RadioButton::default());
     class.apply(&mut node.style);
-    children.insert(node).node_id()
+    descendants.insert(node).node_id()
 }

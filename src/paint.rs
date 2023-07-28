@@ -38,22 +38,6 @@ impl Painter {
         }
     }
 
-    /// Sets the color, then returns the old color.
-    #[inline]
-    pub fn set_color(&mut self, new_color: Color) -> Color {
-        let old_color = self.color;
-        self.color = new_color;
-        old_color
-    }
-
-    /// Translates, then returns old tranlsation.
-    #[inline]
-    pub fn translate(&mut self, translation: Vec2) -> Vec2 {
-        let old_translation = self.translation;
-        self.translation += translation;
-        old_translation
-    }
-
     /// Paints a triangle.
     pub fn triangle(&mut self, points: [Vec2; 3]) {
         let i = self.index;
@@ -170,9 +154,25 @@ impl Painter {
         self.view.write_to_gpu(device, queue, &mut self.gpu_view)
     }
 
+    pub(crate) fn push_state(&self) -> (Vec2, Color) {
+        (self.translation, self.color)
+    }
+
+    pub(crate) fn pop_state(&mut self, state: (Vec2, Color)) {
+        self.translation = state.0;
+        self.color = state.1;
+    }
+
     // Translates points and turns them into vertices.
     fn points_to_vertices<const N: usize>(&self, points: [Vec2; N]) -> [Vertex; N] {
         points.map(|point| Vertex::new(point + self.translation, self.color))
+    }
+
+    // Translates, then returns old translation.
+    fn translate(&mut self, translation: Vec2) -> Vec2 {
+        let old_translation = self.translation;
+        self.translation += translation;
+        old_translation
     }
 }
 

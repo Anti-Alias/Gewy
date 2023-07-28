@@ -4,7 +4,7 @@ use bytemuck::{Pod, Zeroable};
 
 
 #[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, PartialEq, Default, Debug)]
+#[derive(Pod, Zeroable, Copy, Clone, PartialEq, Debug)]
 pub struct Color { r: f32, g: f32, b: f32, a: f32 }
 impl Color {
     pub const BLACK: Color = Color::new(0.0, 0.0, 0.0, 1.0);
@@ -21,6 +21,11 @@ impl Color {
     pub const TEAL: Color = Color::new(0.0, 1.0, 1.0, 1.0);
     pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
+    }
+}
+impl Default for Color {
+    fn default() -> Self {
+        Color::WHITE
     }
 }
 impl From<[f32; 4]> for Color {

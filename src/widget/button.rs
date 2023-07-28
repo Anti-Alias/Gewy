@@ -1,7 +1,7 @@
 use crate::*;
 
-const BACKGROUND: Color = Color::LIGHT_GRAY;
-const UNSELECTED: Color = Color::DARK_GRAY;
+const LIGHT: Color = Color::LIGHT_GRAY;
+const DARK: Color = Color::DARK_GRAY;
 const SELECTED: Color = Color::BLACK;
 
 #[derive(Clone, Default, Debug)]
@@ -11,20 +11,24 @@ pub struct RadioButton {
 }
 impl Widget for RadioButton {
 
-    fn event(&mut self, _style: &mut Style, _children: &mut Children, ctl: &mut EventControl) -> Result<()> {
+    fn event(&mut self, _style: &mut Style, _descendants: &mut Descendants, ctl: &mut EventControl) -> Result<()> {
         if ctl.is_event::<EnterEvent>() {
             ctl.set_cursor_icon(CursorIcon::Hand);
+            ctl.stop();
         }
         else if ctl.is_event::<ExitEvent>() {
             ctl.set_cursor_icon(CursorIcon::Default);
+            ctl.stop();
         }
         else if ctl.is_event::<PressEvent>() {
             ctl.press();
+            ctl.stop();
         }
         else if ctl.is_event::<ReleaseEvent>() {
             self.selected = !self.selected;
             ctl.stop();
             ctl.repaint();
+            ctl.stop();
         }
         Ok(())
     }
@@ -36,25 +40,20 @@ impl Widget for RadioButton {
         style.max_size = SIZE;
     }
 
-    fn paint(&self, _style: &Style, painter: &mut Painter, canvas: Canvas) {
-
-        let old_color = painter.color;
-
+    fn paint(&self, style: &Style, painter: &mut Painter, canvas: Canvas) {
         let center = canvas.size * 0.5;
-
         let outer_radius = center.min_element();
         let inner_radius = outer_radius * 0.75;
         let dot_radius = inner_radius * 0.75;
 
-        let color = if self.selected { SELECTED } else { UNSELECTED };
+        let light_color = style.color * LIGHT;
+        let selected_color = style.color * if self.selected { SELECTED } else { DARK };
 
-        painter.color = color;
+        painter.color = selected_color;
         painter.circle(center, outer_radius);
-        painter.color = BACKGROUND;
+        painter.color = light_color;
         painter.circle(center, inner_radius);
-        painter.color = color;
+        painter.color = selected_color;
         painter.circle(center, dot_radius);
-
-        painter.color = old_color;
     }
 }

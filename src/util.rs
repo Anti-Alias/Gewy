@@ -5,10 +5,9 @@ use crate::{Style, Painter, Canvas};
 
 /// Utility function for painting pane-like widgets.
 pub fn paint_pane(style: &Style, painter: &mut Painter, canvas: Canvas) {
-    let old_color = painter.set_color(style.color);
     let Canvas { size, corners } = canvas;
+    painter.color = style.color;
     painter.rounded_rect(Vec2::ZERO, size, corners.top_left, corners.top_right, corners.bottom_right, corners.bottom_left);
-    painter.color = old_color;
 }
 
 pub(crate) fn write_to_buffer(
