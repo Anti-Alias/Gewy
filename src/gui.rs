@@ -301,7 +301,7 @@ impl Gui {
             self.grow_group(child_ids, group_width, grow_total, parent_size.x, parent_layout.justify_content, is_reverse);
         }
         else {
-            self.shrink_group(child_ids, group_width, parent_size.x, is_reverse, MAX_SHRINK_LOOPS);
+            self.shrink_group(child_ids, group_width, parent_size.x, is_reverse, child_ids.len());
         }
         self.align_group(child_ids, parent_size.y, parent_size.y, parent_layout.align_items);
         self.decorate_group(child_ids);
@@ -413,6 +413,10 @@ impl Gui {
         is_reverse: bool,
         max_loops: usize
     ) {
+        if max_loops == 0 {
+            eprintln!("Shrinking looped too many times");
+            return;
+        }
         
         const EPSILON: f32 = 0.001;
         let group_width_ratio = parent_width / group_width;
@@ -432,7 +436,7 @@ impl Gui {
         };
 
         // Shaves off as much from the each node as possible and positions them side-by-side.
-        let shave_ratio = shave / scaled_shave;
+        let shave_ratio = (shave / scaled_shave).min(1.0);
         let mut x = 0.0;
         let node_ids = RevIter::new(group, is_reverse);
         for id in node_ids {
@@ -446,12 +450,11 @@ impl Gui {
             node.raw.region.position.x = x;
             x += node.raw.region.size.x;
         };
+        if scaled_shave < shave { return }
 
         // If still too big and at least one node was shaved in the last pass, redo the algo.
         let shaved_group_width = x;
-        if max_loops == 0 {
-            eprintln!("Shrinking looped too many times");
-        }
+
         if shaved_group_width > parent_width + EPS && nodes_shaved > 0 && max_loops > 0 {
             self.shrink_group(group, shaved_group_width, parent_width, is_reverse, max_loops - 1);
         }
