@@ -79,6 +79,15 @@ pub struct Size {
     pub height: Val    
 }
 
+impl Size {
+    pub const fn new(width: Val, height: Val) -> Self {
+        Self { width, height }
+    }
+    pub const fn all(value: Val) -> Self {
+        Self { width: value, height: value }
+    }
+}
+
 /// Numerical value for various properties.
 #[derive(Copy, Clone, PartialEq, Debug, Default)]
 pub enum Val {

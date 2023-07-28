@@ -15,10 +15,10 @@ pub trait Widget: Any + 'static {
 
     /// Spawns descendants, if any at all.
     /// Invoked after node insertion.
-    fn children(&self, _children: Children) {}
+    fn children(&self, _children: &mut Children) {}
 
     /// Handles an event, and possibly fires a new one.
-    fn event(&mut self, _style: &mut Style, _children: Children, _ctl: &mut EventControl) -> Result<()> {
+    fn event(&mut self, _style: &mut Style, _children: &mut Children, _ctl: &mut EventControl) -> Result<()> {
         Ok(())
     }
 

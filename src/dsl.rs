@@ -135,12 +135,8 @@ where
 }
 
 pub fn pane(class: impl StyleClass, children: &mut Children, children_fn: impl FnOnce(&mut Children)) -> NodeId {
-    
-    // Builds node
     let mut node = Node::from_widget(Pane);
     class.apply(&mut node.style);
-
-    // Inserts node and inserts children
     let mut children = children.insert(node);
     children_fn(&mut children);
     children.node_id()

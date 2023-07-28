@@ -186,8 +186,8 @@ impl Gui {
             
             // Has Widget of current node handle event.
             let style = &mut node.style;
-            let children = Children::new(node_id, self);
-            node.widget.event(style, children, &mut ctl)?;
+            let mut children = Children::new(node_id, self);
+            node.widget.event(style, &mut children, &mut ctl)?;
             let stop_propagation = ctl.stop;
 
             // Sets cursor
@@ -221,9 +221,9 @@ impl Gui {
         for (node_id, node) in storage.iter_mut() {
 
             // Has widget of current node handle event.
-            let children = Children { ancestor_id: node_id, parent_id: node_id, gui: self };
+            let mut children = Children { ancestor_id: node_id, parent_id: node_id, gui: self };
             let mut ctl = EventControl::new(&event, None);
-            node.widget.event(&mut node.style, children, &mut ctl)?;
+            node.widget.event(&mut node.style, &mut children, &mut ctl)?;
 
             // Sets cursor
             if let Some(icon) = ctl.cursor_icon {
@@ -266,7 +266,7 @@ impl Gui {
         let gui = self as *mut Self;
         let gui = &mut *gui;
         let node = self.storage.get_mut(node_id).unwrap();
-        node.widget.children(Children::new(node_id, gui));
+        node.widget.children(&mut Children::new(node_id, gui));
     }
 
     // Computes the raw regions of this node's children.
@@ -469,9 +469,11 @@ impl Gui {
             let node = self.get_mut(*id).unwrap();
             let node_align_self = node.style.config.align_self;
             let node_align = node_align_self.to_align_items(parent_align_items);
+            let node_height = node.style.size.height;
             match node_align {
-                AlignItems::Start => {},
-                AlignItems::Stretch => node.raw.region.size.y = group_height,
+                AlignItems::Stretch if node_height == Val::Auto => {
+                    node.raw.region.size.y = group_height
+                },
                 AlignItems::Center => {
                     let node_size = node.raw.region.size;
                     let node_height = node_size.y;
@@ -481,6 +483,7 @@ impl Gui {
                     let node_height = node.raw.region.size.y;
                     node.raw.region.position.y = parent_height - node_height;
                 }
+                _ => {}
             }
         }
     }

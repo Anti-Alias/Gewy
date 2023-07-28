@@ -11,7 +11,7 @@ pub struct RadioButton {
 }
 impl Widget for RadioButton {
 
-    fn event(&mut self, _style: &mut Style, _children: Children, ctl: &mut EventControl) -> Result<()> {
+    fn event(&mut self, _style: &mut Style, _children: &mut Children, ctl: &mut EventControl) -> Result<()> {
         if ctl.is_event::<EnterEvent>() {
             ctl.set_cursor_icon(CursorIcon::Hand);
         }
@@ -30,8 +30,10 @@ impl Widget for RadioButton {
     }
 
     fn style<'n>(&self, style: &mut Style) {
-        style.size.width = Val::Px(17.0);
-        style.size.height = Val::Px(17.0);
+        const SIZE: Size = Size::all(Val::Px(17.0));
+        style.size = SIZE;
+        style.min_size = SIZE;
+        style.max_size = SIZE;
     }
 
     fn paint(&self, _style: &Style, painter: &mut Painter, canvas: Canvas) {

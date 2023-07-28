@@ -13,13 +13,12 @@ impl Widget for Root {
 
     fn style(&self, s: &mut Style) {
         s.color = Color::GRAY;
-        s.layout.direction = Direction::Column;
+        s.layout.direction = Direction::Row;
         s.layout.justify_content = JustifyContent::SpaceBetween;
         s.layout.align_items = AlignItems::Center;
     }
 
-    fn children(&self, mut children: Children) {
-        let c = &mut children;
+    fn children(&self, c: &mut Children) {
         rect((c_red, c_round), c);
         pane((c_green, c_round), c, |c| {
             radio_button(c_button, c);
@@ -43,8 +42,6 @@ fn c_red(s: &mut Style) {
     s.color = Color::RED;
     s.size.width = Val::Px(128.0);  
     s.size.height = Val::Px(128.0);
-    s.padding.left = Val::Px(32.0);
-    s.padding.right = Val::Px(32.0);
     s.layout.direction = Direction::Column;
     s.config.shrink = 1.0;
 }
@@ -54,8 +51,8 @@ fn c_green(s: &mut Style) {
     s.size.width = Val::Px(128.0);  
     s.size.height = Val::Px(128.0);
     s.config.shrink = 2.0;
-    s.padding.left = Val::Px(128.0);
-    s.padding.right = Val::Px(128.0);
+    s.padding.left = Val::Px(32.0);
+    s.padding.right = Val::Px(32.0);
     s.layout.justify_content = JustifyContent::Center;
     s.layout.align_items = AlignItems::Center;
 }
@@ -64,8 +61,6 @@ fn c_blue(s: &mut Style) {
     s.color = Color::BLUE;
     s.size.width = Val::Px(128.0);  
     s.size.height = Val::Px(128.0);
-    s.padding.left = Val::Px(32.0);
-    s.padding.right = Val::Px(32.0);
     s.config.shrink = 3.0;
 }
 
