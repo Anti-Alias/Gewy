@@ -8,8 +8,9 @@ pub type Padding = Sides;
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Style {
-    pub width: Val,
-    pub height: Val,
+    pub size: Size,
+    pub min_size: Size,
+    pub max_size: Size,
     pub color: Color,
     pub margin: Sides,
     pub padding: Sides,
@@ -20,7 +21,7 @@ pub struct Style {
 
 impl Style {
     pub(crate) fn raw_width(&self, parent_width: f32, raw_margin: f32, raw_padding: f32, is_row: bool) -> f32 {
-        let width = if is_row { self.width } else { self.height };
+        let width = if is_row { self.size.width } else { self.size.height };
         match width {
             Val::Px(px) => px.max(0.0) + raw_margin + raw_padding,
             Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_width + raw_margin + raw_padding,
@@ -28,7 +29,7 @@ impl Style {
         }
     }
     pub(crate) fn raw_height(&self, parent_height: f32, raw_margin: f32, raw_padding: f32, is_row: bool) -> f32 {
-        let height = if is_row { self.height } else { self.width };
+        let height = if is_row { self.size.height } else { self.size.width };
         match height {
             Val::Px(px) => px.max(0.0) + raw_margin + raw_padding,
             Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_height + raw_margin + raw_padding,
@@ -69,6 +70,13 @@ impl Style {
             left: sides.left.to_raw(parent_size.x).max(0.0)
         }
     }
+}
+
+/// Size of the node.
+#[derive(Copy, Clone, PartialEq, Debug, Default)]
+pub struct Size {
+    pub width: Val,
+    pub height: Val    
 }
 
 /// Numerical value for various properties.

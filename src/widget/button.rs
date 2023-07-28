@@ -30,8 +30,8 @@ impl Widget for RadioButton {
     }
 
     fn style<'n>(&self, style: &mut Style) {
-        style.width = Val::Px(17.0);
-        style.height = Val::Px(17.0);
+        style.size.width = Val::Px(17.0);
+        style.size.height = Val::Px(17.0);
     }
 
     fn paint(&self, _style: &Style, painter: &mut Painter, canvas: Canvas) {
