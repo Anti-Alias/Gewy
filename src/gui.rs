@@ -328,9 +328,9 @@ impl Gui {
             node.raw.padding = node.style.raw_padding(parent_size);
             let raw_margin = node.raw.margin.size().flip(!is_row);
             let raw_padding = node.raw.padding.size().flip(!is_row);
-            let raw_basis = node.style.raw_basis(parent_size.x, raw_margin.x, raw_padding.x, is_row);
+            let raw_basis = node.style.raw_basis(parent_size.x, is_row);
             let outer_width = raw_basis + raw_padding.x + raw_margin.x;
-            let outer_height = node.style.raw_height(parent_size.y, raw_margin.y, raw_padding.y, is_row);
+            let outer_height = node.style.raw_height(parent_size.y, is_row) + raw_margin.y + raw_padding.y;
             node.raw.region = Rect::new(
                 Vec2::new(group_width, 0.0),
                 Vec2::new(outer_width, outer_height)

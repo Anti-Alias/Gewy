@@ -20,27 +20,27 @@ pub struct Style {
 }
 
 impl Style {
-    pub(crate) fn raw_width(&self, parent_width: f32, raw_margin: f32, raw_padding: f32, is_row: bool) -> f32 {
+    pub(crate) fn raw_width(&self, parent_width: f32, is_row: bool) -> f32 {
         let width = if is_row { self.size.width } else { self.size.height };
         match width {
-            Val::Px(px) => px.max(0.0) + raw_margin + raw_padding,
-            Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_width + raw_margin + raw_padding,
+            Val::Px(px) => px.max(0.0),
+            Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_width,
             Val::Auto => parent_width
         }
     }
-    pub(crate) fn raw_height(&self, parent_height: f32, raw_margin: f32, raw_padding: f32, is_row: bool) -> f32 {
+    pub(crate) fn raw_height(&self, parent_height: f32, is_row: bool) -> f32 {
         let height = if is_row { self.size.height } else { self.size.width };
         match height {
-            Val::Px(px) => px.max(0.0) + raw_margin + raw_padding,
-            Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_height + raw_margin + raw_padding,
+            Val::Px(px) => px.max(0.0),
+            Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_height,
             Val::Auto => parent_height
         }
     }
-    pub(crate) fn raw_basis(&self, parent_width: f32, raw_margin: f32, raw_padding: f32, is_row: bool) -> f32 {
+    pub(crate) fn raw_basis(&self, parent_width: f32, is_row: bool) -> f32 {
         match self.config.basis {
             Val::Px(px) => px.max(0.0),
             Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_width,
-            Val::Auto => self.raw_width(parent_width, raw_margin, raw_padding, is_row)
+            Val::Auto => self.raw_width(parent_width, is_row)
         }
     }
     pub(crate) fn raw_corners(&self, element_size: Vec2) -> RawCorners {

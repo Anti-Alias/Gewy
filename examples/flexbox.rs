@@ -16,7 +16,6 @@ impl Widget for Root {
         s.layout.direction = Direction::Row;
         s.layout.justify_content = JustifyContent::SpaceBetween;
         s.layout.align_items = AlignItems::Center;
-        s.margin = Margin::all(Val::Px(40.0));
     }
 
     fn children(&self, mut children: Children) {
