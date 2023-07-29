@@ -48,7 +48,7 @@ impl Raw {
     }
 
     // Width of the content region.
-    pub fn content_width(&self) -> f32 {
+    pub fn width(&self) -> f32 {
         self.region.size.x - (self.margin.left + self.margin.right + self.padding.left + self.padding.right)
     }
 

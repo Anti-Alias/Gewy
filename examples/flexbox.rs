@@ -15,10 +15,8 @@ impl Widget for Root {
     fn style(&self, s: &mut Style) {
         s.color = Color::GRAY;
         s.layout.direction = Direction::Row;
-        s.layout.justify = Justify::Center;
+        s.layout.justify = Justify::Start;
         s.layout.align = Align::Center;
-        s.margin.left = Val::Px(20.0);
-        s.margin.right = Val::Px(20.0);
     }
 
     // Nodes that are implicitly inserted under Root.
@@ -48,8 +46,8 @@ fn c_red(s: &mut Style) {
     s.size.width = Val::Px(128.0);  
     s.size.height = Val::Px(128.0);
     s.max_size.width = Val::Px(256.0);
-    s.padding.left = Val::Px(32.0);
-    s.padding.right = Val::Px(32.0);
+    s.padding.left = Val::Px(64.0);
+    s.padding.right = Val::Px(64.0);
     s.layout.direction = Direction::Column;
     s.config.grow = 1.0;
 }

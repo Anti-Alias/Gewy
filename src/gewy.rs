@@ -306,8 +306,7 @@ impl Gewy {
         
         // Either grows or shrinks
         let group_final_width = if group_basis_width <= parent_size.x + EPS {
-            let result = self.grow_group(child_ids, group_basis_width, grow_total, parent_size.x, is_reverse);
-            result
+            self.grow_group(child_ids, group_basis_width, grow_total, parent_size.x, is_reverse)
         }
         else {
             self.shrink_group(child_ids, group_basis_width, group_content_width, shrink_total, parent_size.x, is_reverse)
@@ -391,15 +390,15 @@ impl Gewy {
             let grow = node.style.config.grow;
             let grow_ratio = grow.max(0.0) / grow_total;
             let max_width = node.raw.max_size.x;
-            let grown_content_width = node.raw.content_width() + grow_width * grow_ratio;
-            let capped = grown_content_width > max_width;
-            if capped {
+            let grown_width = node.raw.width() + grow_width * grow_ratio;
+            let is_capped = grown_width > max_width;
+            if is_capped {
                 node.raw.set_width(max_width);
                 capped_width += node.raw.region.size.x;
             }
             else {
-                node.raw.set_width(grown_content_width);
-                uncapped_width += node.raw.region.size.x;
+                node.raw.set_width(grown_width);
+                uncapped_width += node.raw.full_width();
                 uncapped_grow_total += grow;
                 uncapped_group.push(*id);
             };
@@ -423,62 +422,72 @@ impl Gewy {
     fn shrink_group(
         &mut self,
         group: &[NodeId],
+        group_full_width: f32,
         group_width: f32,
-        group_content_width: f32,
         shrink_total: f32,
         parent_width: f32,
         is_reverse: bool
     ) -> f32 {
-        if group_content_width < EPS || shrink_total < EPS {
-            return group_width;
-        }
-        let group_shave = group_width - parent_width;
-      
+
         // Calculates "scaled shave".
+        let group_shave = group_full_width - parent_width;
         let mut scaled_group_shave = 0.0;
-        let node_ids = SliceIter::new(group, is_reverse);
-        for id in node_ids {
+        for id in SliceIter::new(group, is_reverse) {
             let node = self.get(*id).unwrap();
-            let (content_width, shrink) = (node.raw.content_width(), node.style.config.shrink);
-            let shrink = shrink / shrink_total;
-            let width_ratio = content_width / group_content_width;
-            let scaled_shave = group_shave * width_ratio * shrink;
+            let width = node.raw.width();
+            let shrink = node.style.config.shrink;
+            let shrink_ratio = shrink / shrink_total;
+            let width_ratio = width / group_width;
+            let scaled_shave = group_shave * width_ratio * shrink_ratio;
             scaled_group_shave += scaled_shave;
         };
         if scaled_group_shave < EPS {
-            return group_width;
+            return group_full_width;
         }
 
         // Shaves off as much from the each node as possible and positions them side-by-side.
         let shave_ratio = group_shave / scaled_group_shave;
-        let mut x = 0.0;
-
-        let node_ids = SliceIter::new(group, is_reverse);
-        let mut new_group_content_width = 0.0;
-        let mut overflow_count = 0;
-        for id in node_ids {
+        let mut capped_full_width = 0.0;
+        let mut uncapped_full_width = 0.0;
+        let mut uncapped_width = 0.0;
+        let mut uncapped_shrink_total = 0.0;
+        let mut uncapped_group = NodeIdVec::new();
+        for id in SliceIter::new(group, is_reverse) {
             let node = self.get_mut(*id).unwrap();
-            let (content_width, shrink) = (node.raw.content_width(), node.style.config.shrink);
-            let shrink = shrink / shrink_total.max(1.0);
-            let width_ratio = content_width / group_content_width;
-            let scaled_shave = group_shave * width_ratio * shrink * shave_ratio;
-            let mut new_content_width = content_width - scaled_shave;
-            if new_content_width < node.raw.min_size.x {
-                new_content_width = node.raw.min_size.x;
-                overflow_count += 1;
+            let width = node.raw.width();
+            let shrink = node.style.config.shrink;
+            let shrink_ratio = shrink / shrink_total.max(1.0);
+            let width_ratio = width / group_width;
+            let scaled_shave = group_shave * width_ratio * shrink_ratio * shave_ratio;
+            let shrunk_width = width - scaled_shave;
+            let min_width = node.raw.min_size.x;
+            let is_capped = shrunk_width <= min_width;
+            if is_capped {
+                node.raw.set_width(min_width);
+                capped_full_width += node.raw.full_width();
             }
-            node.raw.set_width(new_content_width);
-            x += node.raw.region.size.x;
-            new_group_content_width += new_content_width;
+            else {
+                node.raw.set_width(shrunk_width);
+                uncapped_width += shrunk_width;
+                uncapped_full_width += node.raw.full_width();
+                uncapped_shrink_total += shrink;
+                uncapped_group.push(*id);
+            }
         };
 
         // If still too big and there is at least some left to shave off, repeat.
-        let shaved_group_width = x;
-        if overflow_count != 0 && overflow_count != group.len() {
-            self.shrink_group(group, shaved_group_width, new_group_content_width, shrink_total, parent_width, is_reverse)
+        if uncapped_group.len() == group.len() {
+            uncapped_full_width
         }
         else {
-            shaved_group_width
+            capped_full_width + self.shrink_group(
+                &uncapped_group,
+                uncapped_full_width,
+                uncapped_width,
+                uncapped_shrink_total,
+                parent_width - capped_full_width,
+                is_reverse
+            )
         }
     }
 
