@@ -41,7 +41,7 @@ impl Raw {
         self.region.size.x - (self.margin.left + self.margin.right + self.padding.left + self.padding.right)
     }
 
-    // Sets the content width.
+    // Sets the width of the region.
     pub fn set_content_width(&mut self, content_width: f32) {
         self.region.size.x = content_width + (self.margin.left + self.margin.right + self.padding.left + self.padding.right);
     }

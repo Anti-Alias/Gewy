@@ -296,12 +296,12 @@ impl Gui {
         let parent_size = parent_region.size.flip(!is_row);
 
         // Lays out children local to their parent's coordinate space.
-        let (group_width, grow_total) = self.pack_group(child_ids, parent_size, is_row, is_reverse);
+        let (group_width, group_content_width, grow_total, shrink_total) = self.pack_group(child_ids, parent_size, is_row, is_reverse);
         if group_width <= parent_size.x + EPS {
             self.grow_group(child_ids, group_width, grow_total, parent_size.x, parent_layout.justify_content, is_reverse);
         }
         else {
-            self.shrink_group(child_ids, group_width, parent_size.x, is_reverse, child_ids.len());
+            self.shrink_group(child_ids, group_width, group_content_width, shrink_total, parent_size.x, is_reverse);
         }
         self.align_group(child_ids, parent_size.y, parent_size.y, parent_layout.align_items);
         self.decorate_group(child_ids);
@@ -319,10 +319,12 @@ impl Gui {
 
     // Packs elements from left to right, starting at the top-left, local to the parent's coordinate space: (0, 0) to (parent_size.x, parent_size.y).
     // This simplifies the layout code later.
-    fn pack_group(&mut self, group: &[NodeId], parent_size: Vec2, is_row: bool, is_reverse: bool) -> (f32, f32) {
+    fn pack_group(&mut self, group: &[NodeId], parent_size: Vec2, is_row: bool, is_reverse: bool) -> (f32, f32, f32, f32) {
 
         let mut group_width = 0.0;
+        let mut group_content_width = 0.0;
         let mut grow_total = 0.0;
+        let mut shrink_total = 0.0;
         let group_ids = RevIter::new(group, is_reverse);
         for id in group_ids {
             let node = self.get_mut(*id).unwrap();
@@ -337,13 +339,15 @@ impl Gui {
                 Vec2::new(group_width, 0.0),
                 Vec2::new(outer_width, outer_height)
             ).non_negative();
+            group_content_width += raw_basis;
             group_width += outer_width;
             grow_total += node.style.config.grow;
+            shrink_total += node.style.config.shrink;
         };
         grow_total = grow_total.max(1.0);
 
         // Returns sums
-        (group_width, grow_total)
+        (group_width, group_content_width, grow_total, shrink_total)
     }
 
     // Grows "packed" children on the primary axis.
@@ -409,54 +413,60 @@ impl Gui {
         &mut self,
         group: &[NodeId],
         group_width: f32,
+        group_content_width: f32,
+        shrink_total: f32,
         parent_width: f32,
-        is_reverse: bool,
-        max_loops: usize
+        is_reverse: bool
     ) {
-        if max_loops == 0 {
-            eprintln!("Shrinking looped too many times");
+        if group_content_width < EPS || shrink_total < EPS {
             return;
         }
-        
-        const EPSILON: f32 = 0.001;
-        let group_width_ratio = parent_width / group_width;
-        let shave = group_width - parent_width;
-        
+        let group_shave = group_width - parent_width;
+      
         // Calculates "scaled shave".
-        let mut scaled_shave = 0.0;
+        let mut scaled_group_shave = 0.0;
         let node_ids = RevIter::new(group, is_reverse);
-        let mut nodes_shaved = 0;
         for id in node_ids {
             let node = self.get(*id).unwrap();
-            let (n_width, n_shrink) = (node.raw.content_width(), node.style.config.shrink);
-            if n_width > EPSILON { nodes_shaved += 1 } else { continue }
-            let n_shrunk_width = n_width * group_width_ratio;
-            let n_fair_shave = n_width - n_shrunk_width;
-            scaled_shave += n_fair_shave * n_shrink;
+            let (content_width, shrink) = (node.raw.content_width(), node.style.config.shrink);
+            let shrink = shrink / shrink_total;
+            let width_ratio = content_width / group_content_width;
+            let scaled_shave = group_shave * width_ratio * shrink;
+            scaled_group_shave += scaled_shave;
         };
+        if scaled_group_shave < EPS {
+            return;
+        }
 
         // Shaves off as much from the each node as possible and positions them side-by-side.
-        let shave_ratio = (shave / scaled_shave).min(1.0);
+        let shave_ratio = group_shave / scaled_group_shave;
         let mut x = 0.0;
         let node_ids = RevIter::new(group, is_reverse);
+        let mut new_group_content_width = 0.0;
+        let mut retry = false;
         for id in node_ids {
             let node = self.get_mut(*id).unwrap();
-            let (n_width, n_shrink) = (node.raw.content_width(), node.style.config.shrink);
-            let n_shrunk_width = n_width * group_width_ratio;
-            let n_fair_shave = n_width - n_shrunk_width;
-            let n_shave = n_fair_shave * n_shrink * shave_ratio;
-            let n_new_width = (n_width - n_shave).max(0.0);
-            node.raw.set_content_width(n_new_width);
+            let (content_width, shrink) = (node.raw.content_width(), node.style.config.shrink);
+            let shrink = shrink / shrink_total.max(1.0);
+            let width_ratio = content_width / group_content_width;
+            let scaled_shave = group_shave * width_ratio * shrink * shave_ratio;
+
+            let mut new_content_width = content_width - scaled_shave;
+            if new_content_width < 0.0 {
+                new_content_width = 0.0;
+                retry = true;
+            }
+            node.raw.set_content_width(new_content_width);
             node.raw.region.position.x = x;
             x += node.raw.region.size.x;
+            new_group_content_width += new_content_width;
         };
-        if scaled_shave < shave { return }
+
 
         // If still too big and at least one node was shaved in the last pass, redo the algo.
         let shaved_group_width = x;
-
-        if shaved_group_width > parent_width + EPS && nodes_shaved > 0 && max_loops > 0 {
-            self.shrink_group(group, shaved_group_width, parent_width, is_reverse, max_loops - 1);
+        if retry {
+            self.shrink_group(group, shaved_group_width, new_group_content_width, shrink_total, parent_width, is_reverse);
         }
     }
 

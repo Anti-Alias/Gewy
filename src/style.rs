@@ -9,8 +9,6 @@ pub type Padding = Sides;
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Style {
     pub size: Size,
-    pub min_size: Size,
-    pub max_size: Size,
     pub color: Color,
     pub margin: Sides,
     pub padding: Sides,
