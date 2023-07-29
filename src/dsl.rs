@@ -1,79 +1,10 @@
-use crate::{Style, Widget, Pane, Descendants, NodeId, Node, RadioButton};
+use crate::{Style, Pane, Descendants, NodeId, Node, RadioButton};
 
-pub trait Class<W> {
-    fn apply(self, widget: &mut W, style: &mut Style);
-}
-
-pub trait StyleClass {
+pub trait Class {
     fn apply(self, style: &mut Style);
 }
 
-impl<F, W> Class<W> for F
-where
-    F: FnOnce(&mut W, &mut Style),
-{
-    fn apply(self, widget: &mut W, style: &mut Style) {
-        self(widget, style);
-    }
-}
-
-impl<W> Class<W> for () {
-    fn apply(self, _widget: &mut W, _style: &mut Style) {}
-}
-
-impl<W, C1> Class<W> for (C1,)
-where
-    C1: Class<W>,
-    W: Widget
-{
-    fn apply(self, widget: &mut W, style: &mut Style) {
-        self.0.apply(widget, style);
-    }
-}
-
-impl<W, C1, C2> Class<W> for (C1, C2)
-where
-    C1: Class<W>,
-    C2: Class<W>,
-    W: Widget
-{
-    fn apply(self, widget: &mut W, style: &mut Style) {
-        self.0.apply(widget, style);
-        self.1.apply(widget, style);
-    }
-}
-
-impl<W, C1, C2, C3> Class<W> for (C1, C2, C3)
-where
-    C1: Class<W>,
-    C2: Class<W>,
-    C3: Class<W>,
-    W: Widget
-{
-    fn apply(self, widget: &mut W, style: &mut Style) {
-        self.0.apply(widget, style);
-        self.1.apply(widget, style);
-        self.2.apply(widget, style);
-    }
-}
-
-impl<W, C1, C2, C3, C4> Class<W> for (C1, C2, C3, C4)
-where
-    C1: Class<W>,
-    C2: Class<W>,
-    C3: Class<W>,
-    C4: Class<W>,
-    W: Widget
-{
-    fn apply(self, widget: &mut W, style: &mut Style) {
-        self.0.apply(widget, style);
-        self.1.apply(widget, style);
-        self.2.apply(widget, style);
-        self.3.apply(widget, style);
-    }
-}
-
-impl<F> StyleClass for F
+impl<F> Class for F
 where
     F: FnOnce(&mut Style),
 {
@@ -82,23 +13,23 @@ where
     }
 }
 
-impl StyleClass for () {
+impl Class for () {
     fn apply(self, _style: &mut Style) {}
 }
 
-impl<C1> StyleClass for (C1,)
+impl<C1> Class for (C1,)
 where
-    C1: StyleClass
+    C1: Class
 {
     fn apply(self, style: &mut Style) {
         self.0.apply(style);
     }
 }
 
-impl<C1, C2> StyleClass for (C1,C2)
+impl<C1, C2> Class for (C1,C2)
 where
-    C1: StyleClass,
-    C2: StyleClass
+    C1: Class,
+    C2: Class
 {
     fn apply(self, style: &mut Style) {
         self.0.apply(style);
@@ -106,11 +37,11 @@ where
     }
 }
 
-impl<C1, C2, C3> StyleClass for (C1,C2,C3)
+impl<C1, C2, C3> Class for (C1,C2,C3)
 where
-    C1: StyleClass,
-    C2: StyleClass,
-    C3: StyleClass
+    C1: Class,
+    C2: Class,
+    C3: Class
 {
     fn apply(self, style: &mut Style) {
         self.0.apply(style);
@@ -119,12 +50,12 @@ where
     }
 }
 
-impl<C1, C2, C3, C4> StyleClass for (C1,C2,C3,C4)
+impl<C1, C2, C3, C4> Class for (C1,C2,C3,C4)
 where
-    C1: StyleClass,
-    C2: StyleClass,
-    C3: StyleClass,
-    C4: StyleClass
+    C1: Class,
+    C2: Class,
+    C3: Class,
+    C4: Class
 {
     fn apply(self, style: &mut Style) {
         self.0.apply(style);
@@ -134,7 +65,7 @@ where
     }
 }
 
-pub fn pane(class: impl StyleClass, descendants: &mut Descendants, descendants_fn: impl FnOnce(&mut Descendants)) -> NodeId {
+pub fn pane(class: impl Class, descendants: &mut Descendants, descendants_fn: impl FnOnce(&mut Descendants)) -> NodeId {
     let mut node = Node::from_widget(Pane);
     class.apply(&mut node.style);
     let mut descendants = descendants.insert(node);
@@ -142,14 +73,14 @@ pub fn pane(class: impl StyleClass, descendants: &mut Descendants, descendants_f
     descendants.node_id()
 }
 
-pub fn rect(class: impl StyleClass, descendants: &mut Descendants) -> NodeId {
+pub fn rect(class: impl Class, descendants: &mut Descendants) -> NodeId {
     let mut node = Node::from_widget(Pane);
     class.apply(&mut node.style);
     let descendants = descendants.insert(node);
     descendants.node_id()
 }
 
-pub fn radio_button(class: impl StyleClass, descendants: &mut Descendants) -> NodeId {
+pub fn radio_button(class: impl Class, descendants: &mut Descendants) -> NodeId {
     let mut node = Node::from_widget(RadioButton::default());
     class.apply(&mut node.style);
     descendants.insert(node).node_id()
