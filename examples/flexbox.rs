@@ -4,8 +4,8 @@ use gewy::winit::*;
 
 fn main() {
     let root = Node::from_widget(Root);
-    let gui = Gewy::new(root);
-    WinitApp::new(gui, 512, 512).start();
+    let gewy = Gewy::new(root);
+    WinitApp::new(gewy, 512, 512).start();
 }
 
 pub struct Root;

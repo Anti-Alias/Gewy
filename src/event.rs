@@ -132,12 +132,12 @@ pub struct ReleaseEvent;
 impl Event for ReleaseEvent {}
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Debug)]
-pub struct GuiEnterEvent;
-impl Event for GuiEnterEvent {}
+pub struct GewyEnterEvent;
+impl Event for GewyEnterEvent {}
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Debug)]
-pub struct GuiExitEvent;
-impl Event for GuiExitEvent {}
+pub struct GewyExitEvent;
+impl Event for GewyExitEvent {}
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Debug)]
 pub struct EnterEvent;

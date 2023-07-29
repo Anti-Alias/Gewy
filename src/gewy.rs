@@ -23,7 +23,7 @@ pub struct Gewy {
 }
 
 impl Gewy {
-    /// Creates a new [`Gui`] instance alongside the id of the root node.
+    /// Creates a new [`Gewy`] instance alongside the id of the root node.
     pub fn new(root_node: Node) -> Self {
         let mut storage = SlotMap::<NodeId, Node>::default();
         let root_id = storage.insert(root_node);
@@ -66,7 +66,7 @@ impl Gewy {
         let node_id = self.storage.insert(node);
         let Some(parent) = self.storage.get_mut(parent_id) else {
             self.storage.remove(node_id);
-            return Err(GuiError::ParentNodeNotFound.into())
+            return Err(GewyError::ParentNodeNotFound.into())
         };
         parent.children_ids.push(node_id);
 
@@ -103,7 +103,7 @@ impl Gewy {
     pub fn iter_named<'a>(&'a mut self, name: Name) -> impl Iterator<Item = &'a mut Node> + '_ {
         let node_ids: &[NodeId] = unsafe { std::mem::transmute(self.ids_with_name(name)) };
         NodeIteratorMut {
-            gui: self,
+            gewy: self,
             node_ids,
             index: 0,
         }
@@ -115,11 +115,11 @@ impl Gewy {
     }
 
     pub fn get(&self, node_id: NodeId) -> Result<&Node> {
-        self.storage.get(node_id).ok_or(GuiError::NodeNotFound)
+        self.storage.get(node_id).ok_or(GewyError::NodeNotFound)
     }
     
     pub fn get_mut(&mut self, node_id: NodeId) -> Result<&mut Node> {
-        self.storage.get_mut(node_id).ok_or(GuiError::NodeNotFound)
+        self.storage.get_mut(node_id).ok_or(GewyError::NodeNotFound)
     }
 
     /// Gets the id of the node touching the position specified.
@@ -158,12 +158,12 @@ impl Gewy {
     }
 
     pub unsafe fn get_unsafe<'a>(&self, node_id: NodeId) -> Result<&'a Node> {
-        let node = self.storage.get(node_id).ok_or(GuiError::NodeNotFound);
+        let node = self.storage.get(node_id).ok_or(GewyError::NodeNotFound);
         std::mem::transmute(node)
     }
 
     pub unsafe fn get_mut_unsafe<'a>(&mut self, node_id: NodeId) -> Result<&'a mut Node> {
-        let node = self.storage.get_mut(node_id).ok_or(GuiError::NodeNotFound);
+        let node = self.storage.get_mut(node_id).ok_or(GewyError::NodeNotFound);
         std::mem::transmute(node)
     }
 
@@ -220,7 +220,7 @@ impl Gewy {
         for (node_id, node) in storage.iter_mut() {
 
             // Has widget of current node handle event.
-            let mut children = Descendants { ancestor_id: node_id, parent_id: node_id, gui: self };
+            let mut children = Descendants { ancestor_id: node_id, parent_id: node_id, gewy: self };
             let mut ctl = EventControl::new(&event, None);
             node.widget.event(&mut node.style, &mut children, &mut ctl)?;
 
@@ -251,10 +251,10 @@ impl Gewy {
 
     /// Provides object for mapping external inputs to internal events.
     pub fn mapping(&mut self) -> InputMapping<'_> {
-        InputMapping { gui: self }
+        InputMapping { gewy: self }
     }
 
-    /// Paints this GUI using the supplied painter.
+    /// Paints the ui using the supplied painter.
     pub fn paint(&mut self, painter: &mut Painter) {
         self.paint_node(self.root_id, painter);
     }
@@ -262,10 +262,10 @@ impl Gewy {
     // Spawns descendants of the node specified using its widget.
     // Assumes the node has been spawned, but has no children.
     unsafe fn spawn_descendants(&mut self, node_id: NodeId) {
-        let gui = self as *mut Self;
-        let gui = &mut *gui;
+        let gewy = self as *mut Self;
+        let gewy = &mut *gewy;
         let node = self.storage.get_mut(node_id).unwrap();
-        node.widget.descendants(&mut Descendants::new(node_id, gui));
+        node.widget.descendants(&mut Descendants::new(node_id, gewy));
     }
 
     // Computes the raw regions of this node's children.
@@ -554,7 +554,7 @@ impl Gewy {
 }
 
 pub struct NodeIteratorMut<'a> {
-    gui: &'a mut Gewy,
+    gewy: &'a mut Gewy,
     node_ids: &'a [NodeId],
     index: usize
 }
@@ -568,7 +568,7 @@ impl<'a> Iterator for NodeIteratorMut<'a> {
         let node_id = self.node_ids[self.index];
         self.index += 1;
         unsafe {
-            let node = self.gui.get_mut(node_id).unwrap();
+            let node = self.gewy.get_mut(node_id).unwrap();
             Some(std::mem::transmute(node))
         }
     }
@@ -580,42 +580,42 @@ mod test {
 
     #[test]
     fn test_insert() {
-        let mut gui = Gewy::new(Node::default());
-        let root_id = gui.root_id;
-        let child_1_id = gui.insert(root_id, Node::default()).unwrap();
-        let child_2_id = gui.insert(root_id, Node::default()).unwrap();
+        let mut gewy = Gewy::new(Node::default());
+        let root_id = gewy.root_id;
+        let child_1_id = gewy.insert(root_id, Node::default()).unwrap();
+        let child_2_id = gewy.insert(root_id, Node::default()).unwrap();
         
-        let root = gui.get(root_id).unwrap();
+        let root = gewy.get(root_id).unwrap();
         assert_eq!(2, root.children().len());
 
-        let child_1 = gui.get(child_1_id).unwrap();
+        let child_1 = gewy.get(child_1_id).unwrap();
         assert_eq!(0, child_1.children().len());
         assert_eq!(Some(root_id), child_1.parent());
 
-        let child_2 = gui.get(child_2_id).unwrap();
+        let child_2 = gewy.get(child_2_id).unwrap();
         assert_eq!(0, child_2.children().len());
         assert_eq!(Some(root_id), child_2.parent());
     }
 
     #[test]
     fn test_remove() {
-        let mut gui = Gewy::new(Node::default());
-        let root_id = gui.root_id;
-        let child_1_id = gui.insert(root_id, Node::default()).unwrap();
-        let child_2_id = gui.insert(root_id, Node::default()).unwrap();
+        let mut gewy = Gewy::new(Node::default());
+        let root_id = gewy.root_id;
+        let child_1_id = gewy.insert(root_id, Node::default()).unwrap();
+        let child_2_id = gewy.insert(root_id, Node::default()).unwrap();
         NodeId::default();
         
-        let root = gui.get(root_id).unwrap();
+        let root = gewy.get(root_id).unwrap();
         assert_eq!(2, root.children().len());
 
-        gui.remove(child_1_id).unwrap();
-        let root = gui.get(root_id).unwrap();
+        gewy.remove(child_1_id).unwrap();
+        let root = gewy.get(root_id).unwrap();
         assert_eq!(1, root.children().len());
 
-        gui.remove(child_2_id).unwrap();
-        let root = gui.get(root_id).unwrap();
+        gewy.remove(child_2_id).unwrap();
+        let root = gewy.get(root_id).unwrap();
         assert_eq!(0, root.children().len());
         
-        assert!(gui.remove(root_id).is_none());
+        assert!(gewy.remove(root_id).is_none());
     }
 }

@@ -1,5 +1,5 @@
 mod node;
-mod gui;
+mod gewy;
 mod style;
 mod widget;
 mod event;
@@ -16,7 +16,7 @@ pub mod util;
 pub mod dsl;
 
 pub use node::*;
-pub use gui::*;
+pub use gewy::*;
 pub use style::*;
 pub use widget::*;
 pub use event::*;

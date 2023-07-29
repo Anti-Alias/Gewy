@@ -10,7 +10,7 @@ use crate::{create_pipeline, Color, Gewy, Painter};
 pub struct WinitApp {
     pub width: u32,
     pub height: u32,
-    pub gui: Gewy,
+    pub gewy: Gewy,
     pub debug: bool,
     pub samples_per_pixel: u32
 }
@@ -18,11 +18,11 @@ pub struct WinitApp {
 /// Stores the application in a window.
 impl WinitApp {
 
-    pub fn new(gui: Gewy, width: u32, height: u32) -> Self {
+    pub fn new(gewy: Gewy, width: u32, height: u32) -> Self {
         Self {
             width,
             height,
-            gui,
+            gewy,
             debug: false,
             samples_per_pixel: 8
         }
@@ -41,14 +41,14 @@ impl WinitApp {
     pub fn start(self) -> ! {
         
         // Opens window and handle high-level events
-        let Self { width, height, gui, debug, samples_per_pixel } = self;
+        let Self { width, height, gewy, debug, samples_per_pixel } = self;
         let size = PhysicalSize::new(width, height);
         let event_loop = EventLoop::new();
         let window = WindowBuilder::new()
             .with_inner_size(size)
             .build(&event_loop)
             .unwrap();
-        let mut state = pollster::block_on(State::new(window, gui, debug, samples_per_pixel));
+        let mut state = pollster::block_on(State::new(window, gewy, debug, samples_per_pixel));
 
         // Runs event loop
         event_loop.run(move |event, _, flow| {
@@ -103,7 +103,7 @@ struct State {
     size: winit::dpi::PhysicalSize<u32>,
     window: Window,
     render_pipeline: RenderPipeline,
-    gui: Gewy,
+    gewy: Gewy,
     painter: Painter,
     msaa_texture_view: Option<TextureView>,
     samples_per_pixel: u32
@@ -111,7 +111,7 @@ struct State {
 
 impl State {
    
-    async fn new(window: Window, gui: Gewy, debug: bool, samples_per_pixel: u32) -> Self {
+    async fn new(window: Window, gewy: Gewy, debug: bool, samples_per_pixel: u32) -> Self {
        
         // WGPU instance
         let window_size = window.inner_size();
@@ -159,7 +159,7 @@ impl State {
 
         // Creates a mesh/gpu mesh.
         let s = Vec2::new(window_size.width as f32, window_size.height as f32);
-        let painter = Painter::new(&device, s, gui.translation, gui.scale);
+        let painter = Painter::new(&device, s, gewy.translation, gewy.scale);
 
         let msaa_texture = if samples_per_pixel == 0 { None } else {
             Self::create_msaa_texture_view(&device, window_size, surface_format, samples_per_pixel);
@@ -175,7 +175,7 @@ impl State {
             config,
             size: window_size,
             render_pipeline,
-            gui,
+            gewy,
             painter,
             msaa_texture_view: msaa_texture,
             samples_per_pixel
@@ -186,14 +186,14 @@ impl State {
 
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
         let size = Vec2::new(new_size.width as f32, new_size.height as f32);
-        self.gui.resize(size);
+        self.gewy.resize(size);
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
         }
-        self.painter.resize(size, self.gui.translation, self.gui.scale, &self.device, &self.queue);
+        self.painter.resize(size, self.gewy.translation, self.gewy.scale, &self.device, &self.queue);
         if self.samples_per_pixel != 1 {
             self.msaa_texture_view = Some(Self::create_msaa_texture_view(&self.device, self.size, self.config.format, self.samples_per_pixel));
         }
@@ -202,32 +202,32 @@ impl State {
     fn input(&mut self, event: &WindowEvent) -> bool {
         match event {
             WindowEvent::CursorEntered { .. } => {
-                let result = self.gui.mapping().enter_cursor();
+                let result = self.gewy.mapping().enter_cursor();
                 if let Err(err) = result {
                     eprintln!("WindowEvent::CursorEntered caused an error: {}", err);
                 }
             },
             WindowEvent::CursorLeft { .. } => {
-                let result = self.gui.mapping().exit_cursor();
+                let result = self.gewy.mapping().exit_cursor();
                 if let Err(err) = result {
                     eprintln!("WindowEvent::CursorLeft caused an error: {}", err);
                 }
             },
             WindowEvent::CursorMoved { position, .. } => {
                 let position = Vec2::new(position.x as f32, position.y as f32);
-                let result = self.gui.mapping().move_cursor(position);
+                let result = self.gewy.mapping().move_cursor(position);
                 if let Err(err) = result {
                     eprintln!("WindowEvent::CursorMoved caused an error: {}", err);
                 }
             },
             WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. } => {
-                let result = self.gui.mapping().press(crate::MouseButton::Left);
+                let result = self.gewy.mapping().press(crate::MouseButton::Left);
                 if let Err(err) = result {
                     eprintln!("WindowEvent::MouseInput caused an error: {}", err);
                 }
             },
             WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Left, .. } => {
-                let result = self.gui.mapping().release(crate::MouseButton::Left);
+                let result = self.gewy.mapping().release(crate::MouseButton::Left);
                 if let Err(err) = result {
                     eprintln!("WindowEvent::MouseInput caused an error: {}", err);
                 }
@@ -243,12 +243,12 @@ impl State {
 
     fn render(&mut self) -> Result<(), SurfaceError> {
 
-        // Paints GUI and writes to GPU mesh
-        self.gui.paint(&mut self.painter);
+        // Paints ui and writes to GPU mesh
+        self.gewy.paint(&mut self.painter);
         self.painter.flush(&self.device, &self.queue);
 
         // Maps cursor icon
-        if let Some(cursor_icon) = self.gui.mapping().take_cursor_icon() {
+        if let Some(cursor_icon) = self.gewy.mapping().take_cursor_icon() {
             self.window.set_cursor_icon(cursor_icon.into());
         }
 

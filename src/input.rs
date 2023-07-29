@@ -1,4 +1,4 @@
-use crate::{Gewy, Result, GuiEnterEvent, GuiExitEvent, PressEvent, ReleaseEvent, EnterEvent, ExitEvent, NodeId};
+use crate::{Gewy, Result, GewyEnterEvent, GewyExitEvent, PressEvent, ReleaseEvent, EnterEvent, ExitEvent, NodeId};
 use glam::Vec2;
 
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
@@ -55,80 +55,80 @@ pub enum CursorIcon {
 }
 
 /**
- * API for mapping the external window manager to the internal gui and vice versa.
+ * API for mapping the external window manager to the internal gewy and vice versa.
  */
 pub struct InputMapping<'a> {
-    pub(crate) gui: &'a mut Gewy
+    pub(crate) gewy: &'a mut Gewy
 }
 impl<'a> InputMapping<'a> {
 
-    /// Alerts the [`Gui`] that the cursor has entered window containing it.
+    /// Alerts the [`Gewy`] that the cursor has entered window containing it.
     /// Fires relevant events.
     pub fn enter_cursor(&mut self) -> Result<()> {
-        self.gui.fire_global(GuiEnterEvent)
+        self.gewy.fire_global(GewyEnterEvent)
     }
 
-    /// Alerts the [`Gui`] that the cursor has exited window containing it.
+    /// Alerts the [`Gewy`] that the cursor has exited window containing it.
     /// Fires relevant events.
     pub fn exit_cursor(&mut self) -> Result<()> {
-        self.gui.fire_global(GuiExitEvent)?;
-        if let Some(pressed_node) = self.gui.cursor.pressed_node {
-            self.gui.fire_bubble(ReleaseEvent, pressed_node)?;
-            self.gui.cursor.pressed_node = None;
+        self.gewy.fire_global(GewyExitEvent)?;
+        if let Some(pressed_node) = self.gewy.cursor.pressed_node {
+            self.gewy.fire_bubble(ReleaseEvent, pressed_node)?;
+            self.gewy.cursor.pressed_node = None;
         }
         Ok(())
     }
 
-    /// Moves the [`Gui`]'s internal cursor.
+    /// Moves the [`Gewy`]'s internal cursor.
     /// Fires relevant events.
     pub fn move_cursor(&mut self, position: Vec2) -> Result<()> {
-        let touching_id = self.gui.get_touching_id(position);
-        let prev_touching_id = self.gui.get_touching_id(self.gui.cursor.position);
+        let touching_id = self.gewy.get_touching_id(position);
+        let prev_touching_id = self.gewy.get_touching_id(self.gewy.cursor.position);
         match (touching_id, prev_touching_id) {
-            (None, Some(prev_id)) => self.gui.fire_bubble(ExitEvent, prev_id)?,
-            (Some(node_id), None) => self.gui.fire_bubble(EnterEvent, node_id)?,
+            (None, Some(prev_id)) => self.gewy.fire_bubble(ExitEvent, prev_id)?,
+            (Some(node_id), None) => self.gewy.fire_bubble(EnterEvent, node_id)?,
             (Some(node_id), Some(prev_id)) if node_id != prev_id => {
-                self.gui.fire_bubble(ExitEvent, prev_id)?;
-                self.gui.fire_bubble(EnterEvent, node_id)?;
+                self.gewy.fire_bubble(ExitEvent, prev_id)?;
+                self.gewy.fire_bubble(EnterEvent, node_id)?;
 
             },
             _ => {}
         }        
-        self.gui.cursor.position = position;
+        self.gewy.cursor.position = position;
         Ok(())
     }
 
-    /// Simulates a touch or a click on the [`Gui`] at the current position of the internal cursor.
+    /// Simulates a touch or a click on the [`Gewy`] at the current position of the internal cursor.
     /// Fires relevant events.
     pub fn press(&mut self, button: MouseButton) -> Result<()> {
         match button {
             MouseButton::Left => {
-                self.gui.cursor.left_pressed = true;
-                self.gui.fire_bubble_at(PressEvent, self.gui.cursor.position)?;
+                self.gewy.cursor.left_pressed = true;
+                self.gewy.fire_bubble_at(PressEvent, self.gewy.cursor.position)?;
             },
             MouseButton::Right => {
-                self.gui.cursor.right_pressed = true;
-                self.gui.fire_bubble_at(PressEvent, self.gui.cursor.position)?;
+                self.gewy.cursor.right_pressed = true;
+                self.gewy.fire_bubble_at(PressEvent, self.gewy.cursor.position)?;
             }
         }
         Ok(())
     }
 
-    /// Simulates the release of a touch or click on the [`Gui`] at the current position of the internal cursor.
+    /// Simulates the release of a touch or click on the [`Gewy`] at the current position of the internal cursor.
     /// Fires relevant events.
     pub fn release(&mut self, button: MouseButton) -> Result<()> {
         match button {
             MouseButton::Left => {
-                self.gui.cursor.left_pressed = false;
-                let Some(pressed_id) = self.gui.pressed_id else { return Ok(()) };
-                self.gui.pressed_id = None;
-                let Some(node_touching_id) = self.gui.get_touching_id(self.gui.cursor.position) else { return Ok(()) };
+                self.gewy.cursor.left_pressed = false;
+                let Some(pressed_id) = self.gewy.pressed_id else { return Ok(()) };
+                self.gewy.pressed_id = None;
+                let Some(node_touching_id) = self.gewy.get_touching_id(self.gewy.cursor.position) else { return Ok(()) };
                 if node_touching_id != pressed_id { return Ok(()) }
-                self.gui.fire_bubble(ReleaseEvent, pressed_id)?;
+                self.gewy.fire_bubble(ReleaseEvent, pressed_id)?;
             },
             MouseButton::Right => {
-                self.gui.cursor.right_pressed = false;
-                self.gui.fire_global(ReleaseEvent)?;
+                self.gewy.cursor.right_pressed = false;
+                self.gewy.fire_global(ReleaseEvent)?;
             }
         }
         Ok(())
@@ -136,6 +136,6 @@ impl<'a> InputMapping<'a> {
 
     /// Takes any updates the the internal cursor icon.
     pub fn take_cursor_icon(&mut self) -> Option<CursorIcon> {
-        std::mem::take(&mut self.gui.next_cursor_icon)
+        std::mem::take(&mut self.gewy.next_cursor_icon)
     }
 }

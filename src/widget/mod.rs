@@ -4,7 +4,7 @@ pub use button::*;
 use std::fmt::Debug;
 use std::any::Any;
 use glam::Vec2;
-use crate::{NodeId, Gewy, Node, Result, Painter, Style, RawCorners, GuiError, EventControl, Name, util};
+use crate::{NodeId, Gewy, Node, Result, Painter, Style, RawCorners, GewyError, EventControl, Name, util};
 
 
 /// Represents the type, state and rendering code of a [`crate::Node`].
@@ -41,13 +41,13 @@ impl Widget for Pane {
 pub struct Descendants<'n> {
     pub(crate) ancestor_id: NodeId,
     pub(crate) parent_id: NodeId,
-    pub(crate) gui: &'n mut Gewy
+    pub(crate) gewy: &'n mut Gewy
 }
 
 impl<'n> Descendants<'n> {
 
-    pub(crate) fn new(ancestor_id: NodeId, gui: &'n mut Gewy) -> Self {
-        Self { ancestor_id, parent_id: ancestor_id, gui }
+    pub(crate) fn new(ancestor_id: NodeId, gewy: &'n mut Gewy) -> Self {
+        Self { ancestor_id, parent_id: ancestor_id, gewy }
     }
     
     /// ID of the widget's node to build children under.
@@ -58,54 +58,54 @@ impl<'n> Descendants<'n> {
     /// Inserts a node and inherits the ancestor.
     pub fn insert(&mut self, mut node: Node) -> Descendants {
         node.ancestor_id = Some(self.ancestor_id);
-        let parent_id = self.gui.insert(self.parent_id, node).unwrap();
+        let parent_id = self.gewy.insert(self.parent_id, node).unwrap();
         Descendants { 
             ancestor_id: self.ancestor_id,
             parent_id,
-            gui: self.gui
+            gewy: self.gewy
         }
     }
 
     /// Inserts a node and becomes the ancestor of its children.
     pub fn insert_ancestor(&mut self, mut node: Node) -> Descendants {
         node.ancestor_id = Some(self.ancestor_id);
-        let parent_id = self.gui.insert(self.parent_id, node).unwrap();
+        let parent_id = self.gewy.insert(self.parent_id, node).unwrap();
         Descendants { 
             ancestor_id: parent_id,
             parent_id,
-            gui: self.gui
+            gewy: self.gewy
         }
     }
     
     pub fn get(&self, node_id: NodeId) -> Result<&Node> {
-        let node = self.gui.get(node_id)?;
+        let node = self.gewy.get(node_id)?;
         if node.ancestor_id != Some(self.ancestor_id) {
-            return Err(GuiError::NodeNotFound);
+            return Err(GewyError::NodeNotFound);
         }
         Ok(node)
     }
 
     pub fn get_mut(&mut self, node_id: NodeId) -> Result<&mut Node> {
-        let node = self.gui.get_mut(node_id)?;
+        let node = self.gewy.get_mut(node_id)?;
         if node.ancestor_id != Some(self.ancestor_id) {
-            return Err(GuiError::NodeNotFound);
+            return Err(GewyError::NodeNotFound);
         }
         Ok(node)
     }
 
     pub fn get_named(&mut self, name: Name) -> Result<&mut Node> {
-        self.iter_named(name).next().ok_or(GuiError::NodeNotFound)
+        self.iter_named(name).next().ok_or(GewyError::NodeNotFound)
     }
     
     pub fn remove(&mut self, node_id: NodeId) -> Option<Node> {
         if node_id == self.ancestor_id {
             return None;
         }
-        self.gui.remove(node_id)
+        self.gewy.remove(node_id)
     }
 
     pub fn iter_named(&mut self, name: Name) -> impl Iterator<Item = &mut Node> + '_ {
-        self.gui
+        self.gewy
             .iter_named(name)
             .filter(|node| node.ancestor_id == Some(self.ancestor_id))
     }
