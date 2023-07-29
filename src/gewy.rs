@@ -8,7 +8,7 @@ use crate::extensions::VecExtensions;
 use crate::util::SliceIter;
 
 const EPS: f32 = 0.001;
-type NodeIdVec = TinyVec<[NodeId; 16]>;
+type NodeIdVec = TinyVec<[NodeId; 32]>;
 
 /// Represents a graphical user interface, and a torage of [`Node`]s.
 #[derive(Default)]
@@ -296,7 +296,7 @@ impl Gewy {
         let is_row = parent_layout.direction.is_row();
         let parent_size = parent_region.size.flip(!is_row);
 
-        // Lays out children local to their parent's coordinate space.
+        // Computes raw values for nodes, and prepares them for further layout code. Accumulates sums.
         let (group_basis_width, group_content_width, grow_total, shrink_total) = self.prepare_group(
             child_ids,
             parent_size,
@@ -305,7 +305,7 @@ impl Gewy {
         );  
         
         // Either grows or shrinks
-        let group_final_width = if group_basis_width <= parent_size.x + EPS {
+        let group_final_width = if group_basis_width <= parent_size.x {
             self.grow_group(child_ids, group_basis_width, grow_total, parent_size.x, is_reverse)
         }
         else {
@@ -549,13 +549,13 @@ impl Gewy {
             let node_align = node_align_self.to_align_items(parent_align_items);
             let node_height = node.style.size.height;
             match node_align {
-                Align::Stretch if node_height == Val::Auto => {
-                    node.raw.region.size.y = group_height
-                },
                 Align::Center => {
                     let node_size = node.raw.region.size;
                     let node_height = node_size.y;
                     node.raw.region.position.y = parent_height / 2.0 - node_height / 2.0;
+                },
+                Align::Stretch if node_height == Val::Auto => {
+                    node.raw.region.size.y = group_height
                 },
                 Align::End =>  {
                     let node_height = node.raw.region.size.y;
