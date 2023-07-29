@@ -44,8 +44,9 @@ fn c_round(s: &mut Style) {
 fn c_red(s: &mut Style) {
     s.color = Color::RED;
     s.width = Val::Px(128.0);  
-    s.height = Val::Px(128.0);
+    s.align_self = AlignSelf::Stretch;
     s.max_width = Val::Px(256.0);
+    s.max_height = Val::Px(256.0);
     s.padding.left = Val::Px(64.0);
     s.padding.right = Val::Px(64.0);
     s.direction = Direction::Column;
