@@ -441,7 +441,7 @@ impl Gewy {
         let mut x = 0.0;
         let node_ids = RevIter::new(group, is_reverse);
         let mut new_group_content_width = 0.0;
-        let mut retry = false;
+        let mut overflow_count = 0;
         for id in node_ids {
             let node = self.get_mut(*id).unwrap();
             let (content_width, shrink) = (node.raw.content_width(), node.style.config.shrink);
@@ -452,7 +452,7 @@ impl Gewy {
             let mut new_content_width = content_width - scaled_shave;
             if new_content_width < 0.0 {
                 new_content_width = 0.0;
-                retry = true;
+                overflow_count += 1;
             }
             node.raw.set_content_width(new_content_width);
             node.raw.region.position.x = x;
@@ -460,10 +460,9 @@ impl Gewy {
             new_group_content_width += new_content_width;
         };
 
-
         // If still too big and at least one node was shaved in the last pass, redo the algo.
         let shaved_group_width = x;
-        if retry {
+        if overflow_count != 0 && overflow_count != group.len() {
             self.shrink_group(group, shaved_group_width, new_group_content_width, shrink_total, parent_width, is_reverse);
         }
     }
