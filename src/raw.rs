@@ -25,7 +25,7 @@ impl Raw {
         let bottom_right = Vec2::new(margin.right, margin.bottom);
         let position = self.region.position + top_left;
         let size = self.region.size - top_left - bottom_right;
-        Rect { position, size }.non_negative()
+        Rect { position, size }
     }
 
     // Region of the node containing only the content.
@@ -35,7 +35,7 @@ impl Raw {
         let bottom_right = Vec2::new(margin.right, margin.bottom) + Vec2::new(padding.right, padding.bottom);
         let position = self.region.position + top_left;
         let size = self.region.size - top_left - bottom_right;
-        Rect { position, size }.non_negative()
+        Rect { position, size }
     }
 
     // Width of the content region.

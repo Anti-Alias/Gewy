@@ -238,7 +238,7 @@ impl Gewy {
 
     pub fn resize(&mut self, size: Vec2) {
         let layout = Layout {
-            justify: JustifyContent::Center,
+            justify: Justify::Center,
             ..Default::default()
         };
         self.layout_children(
@@ -310,10 +310,9 @@ impl Gewy {
             self.shrink_group(child_ids, group_basis_width, group_content_width, shrink_total, parent_size.x, is_reverse)
         };
 
-        // Applies justify, align and decorates various properties.
+        // Justifies and aligns children
         self.justify_group(child_ids, group_final_width, parent_size.x, parent_layout.justify, is_reverse);
-        self.align_group(child_ids, parent_size.y, parent_size.y, parent_layout.align_items);
-        self.decorate_group(child_ids);
+        self.align_group(child_ids, parent_size.y, parent_size.y, parent_layout.align);
 
         // Transforms children to the global coordinate space.
         for child_id in child_ids {
@@ -356,7 +355,7 @@ impl Gewy {
             node.raw.region = Rect::new(
                 Vec2::new(group_basis_width, 0.0),
                 Vec2::new(width, height)
-            ).non_negative();
+            );
 
             // Accumulates sums
             group_content_width += raw_basis;
@@ -384,15 +383,24 @@ impl Gewy {
         let grow_width = parent_width - group_width;
         let mut new_group_width = 0.0;
         let group_ids = RevIter::new(group, is_reverse);
+        let mut underflow_count = 0;
         for id in group_ids {
             let node = self.get_mut(*id).unwrap();
             let grow_perc = node.style.config.grow.max(0.0) / grow_total;
-            let new_content_width = node.raw.content_width() + grow_perc * grow_width;
-            let new_content_width = new_content_width.min(node.raw.max_size.x);
+            let mut new_content_width = node.raw.content_width() + grow_perc * grow_width;
+            if new_content_width > node.raw.max_size.x {
+                new_content_width = node.raw.max_size.x;
+                underflow_count += 1;
+            }
             node.raw.set_content_width(new_content_width);
             new_group_width += node.raw.region.size.x;
         };
-        new_group_width
+        if underflow_count != 0 && underflow_count < group.len() {
+            self.grow_group(group, new_group_width, grow_total, parent_width, is_reverse)
+        }
+        else {
+            new_group_width
+        }
     }
 
     fn justify_group(
@@ -400,26 +408,26 @@ impl Gewy {
         group: &[NodeId],
         group_width: f32,
         parent_width: f32,
-        justify_content: JustifyContent,
+        justify_content: Justify,
         is_reverse: bool
     ) {
         // Determines offset and spacing of nodes based on the layout.
         let (offset, spacing) = match justify_content {
-            JustifyContent::Start => (0.0, 0.0),
-            JustifyContent::End => (parent_width - group_width, 0.0),
-            JustifyContent::Center => (parent_width/2.0 - group_width/2.0, 0.0),
-            JustifyContent::SpaceBetween => {
+            Justify::Start => (0.0, 0.0),
+            Justify::End => (parent_width - group_width, 0.0),
+            Justify::Center => (parent_width/2.0 - group_width/2.0, 0.0),
+            Justify::SpaceBetween => {
                 let remaining_width = parent_width - group_width;
                 let num_gaps = (group.len() - 1) as f32;
                 (0.0, remaining_width / num_gaps)
             },
-            JustifyContent::SpaceAround => {
+            Justify::SpaceAround => {
                 let remaining_width = parent_width - group_width;
                 let num_nodes = group.len() as f32;
                 let gap = remaining_width / num_nodes;
                 (gap / 2.0, gap)
             },
-            JustifyContent::SpaceEvenly => {
+            Justify::SpaceEvenly => {
                 let remaining_width = parent_width - group_width;
                 let num_gaps = (group.len() + 1) as f32;
                 let gap = remaining_width / num_gaps;
@@ -507,7 +515,7 @@ impl Gewy {
         group: &[NodeId],
         group_height: f32,
         parent_height: f32,
-        parent_align_items: AlignItems
+        parent_align_items: Align
     ) {
         for id in group {
             let node = self.get_mut(*id).unwrap();
@@ -515,28 +523,20 @@ impl Gewy {
             let node_align = node_align_self.to_align_items(parent_align_items);
             let node_height = node.style.size.height;
             match node_align {
-                AlignItems::Stretch if node_height == Val::Auto => {
+                Align::Stretch if node_height == Val::Auto => {
                     node.raw.region.size.y = group_height
                 },
-                AlignItems::Center => {
+                Align::Center => {
                     let node_size = node.raw.region.size;
                     let node_height = node_size.y;
                     node.raw.region.position.y = parent_height / 2.0 - node_height / 2.0;
                 },
-                AlignItems::End =>  {
+                Align::End =>  {
                     let node_height = node.raw.region.size.y;
                     node.raw.region.position.y = parent_height - node_height;
                 }
                 _ => {}
             }
-        }
-    }
-
-    fn decorate_group(&mut self, group: &[NodeId]) {
-        for id in group {
-            let node = self.get_mut(*id).unwrap();
-            let node_size = node.raw.padding_region().size;
-            node.raw.corners = node.style.raw_corners(node_size);
         }
     }
 

@@ -212,8 +212,8 @@ impl Corners {
 #[derive(Copy, Clone, PartialEq, Debug, Default)]
 pub struct Layout {
     pub direction: Direction,
-    pub justify: JustifyContent,
-    pub align_items: AlignItems
+    pub justify: Justify,
+    pub align: Align
 }
 
 
@@ -257,7 +257,7 @@ impl Default for Config {
 }
 
 #[derive(Copy, Clone, PartialEq, Debug, Default)]
-pub enum JustifyContent {
+pub enum Justify {
     #[default]
     Start,
     End,
@@ -268,7 +268,7 @@ pub enum JustifyContent {
 }
 
 #[derive(Copy, Clone, PartialEq, Debug, Default)]
-pub enum AlignItems {
+pub enum Align {
     #[default]
     Center,
     Stretch,
@@ -287,13 +287,13 @@ pub enum AlignSelf {
 }
 
 impl AlignSelf {
-    pub fn to_align_items(self, auto_value: AlignItems) -> AlignItems {
+    pub fn to_align_items(self, auto_value: Align) -> Align {
         match self {
             AlignSelf::Auto => auto_value,
-            AlignSelf::Stretch => AlignItems::Stretch,
-            AlignSelf::Center => AlignItems::Center,
-            AlignSelf::Start => AlignItems::Start,
-            AlignSelf::End => AlignItems::End
+            AlignSelf::Stretch => Align::Stretch,
+            AlignSelf::Center => Align::Center,
+            AlignSelf::Start => Align::Start,
+            AlignSelf::End => Align::End
         }
     }
 }
