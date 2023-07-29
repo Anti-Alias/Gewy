@@ -7,7 +7,6 @@ use crate::extensions::VecExtensions;
 use crate::util::RevIter;
 
 const EPS: f32 = 0.001;
-const MAX_SHRINK_LOOPS: usize = 12;
 
 /// Represents a graphical user interface, and a torage of [`Node`]s.
 #[derive(Default)]
@@ -320,7 +319,6 @@ impl Gui {
     // Packs elements from left to right, starting at the top-left, local to the parent's coordinate space: (0, 0) to (parent_size.x, parent_size.y).
     // This simplifies the layout code later.
     fn pack_group(&mut self, group: &[NodeId], parent_size: Vec2, is_row: bool, is_reverse: bool) -> (f32, f32, f32, f32) {
-
         let mut group_width = 0.0;
         let mut group_content_width = 0.0;
         let mut grow_total = 0.0;

@@ -88,8 +88,9 @@ impl<'a> InputMapping<'a> {
             (None, Some(prev_id)) => self.gui.fire_bubble(ExitEvent, prev_id)?,
             (Some(node_id), None) => self.gui.fire_bubble(EnterEvent, node_id)?,
             (Some(node_id), Some(prev_id)) if node_id != prev_id => {
-                self.gui.fire_bubble(EnterEvent, node_id)?;
                 self.gui.fire_bubble(ExitEvent, prev_id)?;
+                self.gui.fire_bubble(EnterEvent, node_id)?;
+
             },
             _ => {}
         }        
