@@ -28,6 +28,15 @@ impl Raw {
         Rect { position, size }
     }
 
+    // Size of the padding region.
+    pub fn padding_region_size(&self) -> Vec2 {
+        let margin = &self.margin;
+        let top_left = Vec2::new(margin.left, margin.top);
+        let bottom_right = Vec2::new(margin.right, margin.bottom);
+        let size = self.region.size - top_left - bottom_right;
+        size
+    }
+
     // Region of the node containing only the content.
     pub fn content_region(&self) -> Rect {
         let (margin, padding) = (&self.margin, &self.padding);
@@ -44,8 +53,17 @@ impl Raw {
     }
 
     // Sets the width of the region.
-    pub fn set_content_width(&mut self, content_width: f32) {
-        self.region.size.x = content_width + (self.margin.left + self.margin.right + self.padding.left + self.padding.right);
+    pub fn set_width(&mut self, width: f32) {
+        self.region.size.x = width + (self.margin.left + self.margin.right + self.padding.left + self.padding.right);
+    }
+
+    pub fn set_size(&mut self, size: Vec2) {
+        self.region.size.x = size.x + (self.margin.left + self.margin.right + self.padding.left + self.padding.right);
+        self.region.size.y = size.y + (self.margin.top + self.margin.bottom + self.padding.top + self.padding.bottom);
+    }
+
+    pub fn full_width(&self) -> f32 {
+        self.region.size.x
     }
 }
 

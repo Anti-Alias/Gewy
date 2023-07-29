@@ -2,11 +2,13 @@ use std::collections::HashMap;
 
 use glam::Vec2;
 use slotmap::SlotMap;
+use tinyvec::TinyVec;
 use crate::*;
 use crate::extensions::VecExtensions;
 use crate::util::SliceIter;
 
 const EPS: f32 = 0.001;
+type NodeIdVec = TinyVec<[NodeId; 16]>;
 
 /// Represents a graphical user interface, and a torage of [`Node`]s.
 #[derive(Default)]
@@ -295,7 +297,7 @@ impl Gewy {
         let parent_size = parent_region.size.flip(!is_row);
 
         // Lays out children local to their parent's coordinate space.
-        let (group_basis_width, group_content_width, grow_total, shrink_total) = self.pack_group(
+        let (group_basis_width, group_content_width, grow_total, shrink_total) = self.prepare_group(
             child_ids,
             parent_size,
             is_row,
@@ -328,50 +330,42 @@ impl Gewy {
         }
     }
 
-    // Packs elements from left to right, starting at the top-left, local to the parent's coordinate space: (0, 0) to (parent_size.x, parent_size.y).
-    // This simplifies the layout code later.
-    fn pack_group(&mut self, group: &[NodeId], parent_size: Vec2, is_row: bool, is_reverse: bool) -> (f32, f32, f32, f32) {
-        let mut group_basis_width = 0.0;
-        let mut group_content_width = 0.0;
-        let mut grow_total = 0.0;
-        let mut shrink_total = 0.0;
-        let group_ids = SliceIter::new(group, is_reverse);
-        for id in group_ids {
+    // Computes raw values for each node.
+    // Sets each node's size to their "basis size".
+    // Returns various sums for later.
+    fn prepare_group(&mut self, group: &[NodeId], parent_size: Vec2, is_row: bool, is_reverse: bool) -> (f32, f32, f32, f32) {
+        let mut group_full_basis_width = 0.0;   // Total width of group (basis + margin + padding) if they were stacked at their basis size side-by-side
+        let mut group_basis_width = 0.0;        // Total width of group (basis ) if they were stacked at their basis size side-by-side
+        let mut grow_total = 0.0;               // Sum of "grow" values, to be used during shrinking.
+        let mut shrink_total = 0.0;             // Sum of "shrink" values, to be used during growing.
+        for id in SliceIter::new(group, is_reverse) {
             
             // Calculates raw sizes
             let node = self.get_mut(*id).unwrap();
             let min_size = node.style.min_size.to_raw(parent_size, is_row);
             let max_size = node.style.max_size.to_raw(parent_size, is_row);
+            let padding_region_size = node.raw.padding_region_size();
             node.raw.margin = node.style.raw_margin(parent_size, is_row);
             node.raw.padding = node.style.raw_padding(parent_size, is_row);
             node.raw.min_size = min_size;
             node.raw.max_size = max_size.max(min_size);
+            node.raw.corners = node.style.raw_corners(padding_region_size);
 
-            // Calculates corners
-            let padding_size = node.raw.padding_region().size;
-            node.raw.corners = node.style.raw_corners(padding_size);
-
-            // Computes raw packed region
-            let raw_margin = node.raw.margin.size();
-            let raw_padding = node.raw.padding.size();
-            let raw_basis = node.style.raw_basis(parent_size.x, is_row);
-            let width = raw_basis + raw_padding.x + raw_margin.x;
-            let height = node.style.raw_height(parent_size.y, is_row) + raw_margin.y + raw_padding.y;
-            node.raw.region = Rect::new(
-                Vec2::new(group_basis_width, 0.0),
-                Vec2::new(width, height)
-            );
+            // Sets initial size of node
+            let basis_size = node.style.raw_basis(parent_size.x, is_row);
+            let height = node.style.raw_height(parent_size.y, is_row);
+            node.raw.set_size(Vec2::new(basis_size, height));
 
             // Accumulates sums
-            group_content_width += raw_basis;
-            group_basis_width += width;
+            group_basis_width += basis_size;
+            group_full_basis_width += node.raw.full_width();
             grow_total += node.style.config.grow;
             shrink_total += node.style.config.shrink;
         };
         grow_total = grow_total.max(1.0);
 
         // Returns sums
-        (group_basis_width, group_content_width, grow_total, shrink_total)
+        (group_full_basis_width, group_basis_width, grow_total, shrink_total)
     }
 
     // Grows "packed" children on the primary axis.
@@ -384,46 +378,45 @@ impl Gewy {
         is_reverse: bool
     ) -> f32 {
 
-        // Calculates the width of each node.
+        // Setup
         let grow_width = parent_width - group_width;
-        let group_ids = SliceIter::new(group, is_reverse);
         let mut capped_width = 0.0;
         let mut uncapped_width = 0.0;
         let mut uncapped_grow_total = 0.0;
-        let mut uncapped_group = Vec::new();
-        for id in group_ids {
+        let mut uncapped_group = NodeIdVec::new();
 
+        // Computes the "capped" and "uncapped" group values.
+        for id in SliceIter::new(group, is_reverse) {
             let node = self.get_mut(*id).unwrap();
-            let max_width = node.raw.max_size.x;
             let grow = node.style.config.grow;
             let grow_ratio = grow.max(0.0) / grow_total;
-            let new_content_width = node.raw.content_width() + grow_width * grow_ratio;
-
-            let capped = new_content_width > max_width;
+            let max_width = node.raw.max_size.x;
+            let grown_content_width = node.raw.content_width() + grow_width * grow_ratio;
+            let capped = grown_content_width > max_width;
             if capped {
-                node.raw.set_content_width(max_width);
+                node.raw.set_width(max_width);
                 capped_width += node.raw.region.size.x;
             }
             else {
-                node.raw.set_content_width(new_content_width);
+                node.raw.set_width(grown_content_width);
                 uncapped_width += node.raw.region.size.x;
                 uncapped_grow_total += grow;
                 uncapped_group.push(*id);
             };
         };
 
-        if uncapped_group.len() != group.len() {
-            capped_width + self.grow_group(
-                &uncapped_group,
-                uncapped_width,
-                uncapped_grow_total.max(1.0),
-                parent_width - capped_width,
-                false
-            )
+        // Return width if none of the nodes were "capped".
+        if uncapped_group.len() == group.len() {
+            return uncapped_width;
         }
-        else {
-            uncapped_width
-        }
+        // Otherwise, recurse.
+        capped_width + self.grow_group(
+            &uncapped_group,
+            uncapped_width,
+            uncapped_grow_total.max(1.0),
+            parent_width - capped_width,
+            false
+        )
     }
 
     // Shrinks "packed" children on the primary axis.
@@ -474,8 +467,7 @@ impl Gewy {
                 new_content_width = node.raw.min_size.x;
                 overflow_count += 1;
             }
-            node.raw.set_content_width(new_content_width);
-            node.raw.region.position.x = x;
+            node.raw.set_width(new_content_width);
             x += node.raw.region.size.x;
             new_group_content_width += new_content_width;
         };
@@ -582,7 +574,7 @@ impl Gewy {
         let widget = &node.widget;
         let style = &node.style;
 
-        // Creates canvas for widget to paint in
+        // Gets padding region
         let mut paint_region = node.raw.padding_region();
         let mut corners = node.raw.corners;
         if self.round {
@@ -590,21 +582,22 @@ impl Gewy {
             paint_region = paint_region.round(unit);
             corners = corners.round(unit);
         }
-        let canvas = Canvas {
-            size: paint_region.size,
-            corners
-        };
 
-        // Paints widget
-        let state = painter.push_state();
-        painter.translation = paint_region.position;
-        widget.paint(style, painter, canvas);
-        painter.pop_state(state);
+        // Paints widget in the padding region
+        let paint_size = paint_region.size;
+        if paint_size.x > EPS && paint_size.y > EPS {
+            let canvas = Canvas {
+                size: paint_size,
+                corners
+            };
+            let state = painter.push_state();
+            painter.translation = paint_region.position;
+            widget.paint(style, painter, canvas);
+            painter.pop_state(state);
+        }
 
         // Renders children of node
-        let children: &[NodeId] = unsafe {
-            std::mem::transmute(node.children())
-        };
+        let children: &[NodeId] = unsafe { std::mem::transmute(node.children()) };
         for child_id in children {
             self.paint_node(*child_id, painter);
         }

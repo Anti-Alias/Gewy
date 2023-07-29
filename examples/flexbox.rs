@@ -11,6 +11,7 @@ fn main() {
 pub struct Root;
 impl Widget for Root {
 
+    // Default style for widget
     fn style(&self, s: &mut Style) {
         s.color = Color::GRAY;
         s.layout.direction = Direction::Row;
@@ -20,6 +21,7 @@ impl Widget for Root {
         s.margin.right = Val::Px(20.0);
     }
 
+    // Nodes that are implicitly inserted under Root.
     fn descendants(&self, d: &mut Descendants) {
         rect((c_red, c_round), d);
         pane((c_green, c_round), d, |d| {
@@ -30,6 +32,7 @@ impl Widget for Root {
         rect((c_blue, c_round), d);
     }
 
+    // Paints primitive shapes of Root (not including children).
     fn paint(&self, style: &Style, painter: &mut Painter, canvas: Canvas) {
         util::paint_pane(style, painter, canvas);
     }
@@ -70,9 +73,7 @@ fn c_blue(s: &mut Style) {
 }
 
 fn c_button(s: &mut Style) {
-    //s.margin = Margin::all(Val::Px(5.0));
     s.size = Size::all(Val::Px(17.0));
     s.min_size = Size::all(Val::Px(17.0));
     s.max_size = Size::all(Val::Px(17.0));
-    s.margin = Margin::all(Val::Px(2.0));
 }
