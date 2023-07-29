@@ -29,13 +29,13 @@ pub(crate) fn write_to_buffer(
 }
 
 // Iterator over a slice that either travels forwards or backwards depending on a flag.
-pub(crate) struct RevIter<'s, T> {
+pub(crate) struct SliceIter<'s, T> {
     index: isize,
     direction: isize,
     slice: &'s [T]
 }
 
-impl<'s, T: Copy> Iterator for RevIter<'s, T> {
+impl<'s, T: Copy> Iterator for SliceIter<'s, T> {
 
     type Item = &'s T;
 
@@ -53,7 +53,7 @@ impl<'s, T: Copy> Iterator for RevIter<'s, T> {
     }
 }
 
-impl <'s, T> RevIter<'s, T> {
+impl <'s, T> SliceIter<'s, T> {
     pub fn new(slice: &'s [T], is_reversed: bool) -> Self {
         if is_reversed {
             Self {

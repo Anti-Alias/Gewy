@@ -11,6 +11,15 @@ fn main() {
 pub struct Root;
 impl Widget for Root {
 
+    fn style(&self, s: &mut Style) {
+        s.color = Color::GRAY;
+        s.layout.direction = Direction::Row;
+        s.layout.justify = Justify::Center;
+        s.layout.align = Align::Center;
+        s.margin.left = Val::Px(20.0);
+        s.margin.right = Val::Px(20.0);
+    }
+
     fn descendants(&self, d: &mut Descendants) {
         rect((c_red, c_round), d);
         pane((c_green, c_round), d, |d| {
@@ -19,13 +28,6 @@ impl Widget for Root {
             radio_button(c_button, d);
         });
         rect((c_blue, c_round), d);
-    }
-
-    fn style(&self, s: &mut Style) {
-        s.color = Color::GRAY;
-        s.layout.direction = Direction::Row;
-        s.layout.justify = Justify::Center;
-        s.layout.align = Align::Center;
     }
 
     fn paint(&self, style: &Style, painter: &mut Painter, canvas: Canvas) {
