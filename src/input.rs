@@ -1,4 +1,4 @@
-use crate::{Gui, Result, GuiEnterEvent, GuiExitEvent, PressEvent, ReleaseEvent, EnterEvent, ExitEvent, NodeId};
+use crate::{Gewy, Result, GuiEnterEvent, GuiExitEvent, PressEvent, ReleaseEvent, EnterEvent, ExitEvent, NodeId};
 use glam::Vec2;
 
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
@@ -58,7 +58,7 @@ pub enum CursorIcon {
  * API for mapping the external window manager to the internal gui and vice versa.
  */
 pub struct InputMapping<'a> {
-    pub(crate) gui: &'a mut Gui
+    pub(crate) gui: &'a mut Gewy
 }
 impl<'a> InputMapping<'a> {
 

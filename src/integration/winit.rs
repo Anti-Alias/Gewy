@@ -5,12 +5,12 @@ use winit::event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCo
 use winit::event_loop::{EventLoop, ControlFlow};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
-use crate::{create_pipeline, Color, Gui, Painter};
+use crate::{create_pipeline, Color, Gewy, Painter};
 
 pub struct WinitApp {
     pub width: u32,
     pub height: u32,
-    pub gui: Gui,
+    pub gui: Gewy,
     pub debug: bool,
     pub samples_per_pixel: u32
 }
@@ -18,7 +18,7 @@ pub struct WinitApp {
 /// Stores the application in a window.
 impl WinitApp {
 
-    pub fn new(gui: Gui, width: u32, height: u32) -> Self {
+    pub fn new(gui: Gewy, width: u32, height: u32) -> Self {
         Self {
             width,
             height,
@@ -103,7 +103,7 @@ struct State {
     size: winit::dpi::PhysicalSize<u32>,
     window: Window,
     render_pipeline: RenderPipeline,
-    gui: Gui,
+    gui: Gewy,
     painter: Painter,
     msaa_texture_view: Option<TextureView>,
     samples_per_pixel: u32
@@ -111,7 +111,7 @@ struct State {
 
 impl State {
    
-    async fn new(window: Window, gui: Gui, debug: bool, samples_per_pixel: u32) -> Self {
+    async fn new(window: Window, gui: Gewy, debug: bool, samples_per_pixel: u32) -> Self {
        
         // WGPU instance
         let window_size = window.inner_size();

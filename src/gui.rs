@@ -10,7 +10,7 @@ const EPS: f32 = 0.001;
 
 /// Represents a graphical user interface, and a torage of [`Node`]s.
 #[derive(Default)]
-pub struct Gui {
+pub struct Gewy {
     storage: SlotMap<NodeId, Node>,
     root_id: NodeId,
     named_index: HashMap<Name, Vec<NodeId>>,
@@ -22,7 +22,7 @@ pub struct Gui {
     pub round: bool
 }
 
-impl Gui {
+impl Gewy {
     /// Creates a new [`Gui`] instance alongside the id of the root node.
     pub fn new(root_node: Node) -> Self {
         let mut storage = SlotMap::<NodeId, Node>::default();
@@ -554,7 +554,7 @@ impl Gui {
 }
 
 pub struct NodeIteratorMut<'a> {
-    gui: &'a mut Gui,
+    gui: &'a mut Gewy,
     node_ids: &'a [NodeId],
     index: usize
 }
@@ -576,11 +576,11 @@ impl<'a> Iterator for NodeIteratorMut<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::{Gui, Node, NodeId};
+    use crate::{Gewy, Node, NodeId};
 
     #[test]
     fn test_insert() {
-        let mut gui = Gui::new(Node::default());
+        let mut gui = Gewy::new(Node::default());
         let root_id = gui.root_id;
         let child_1_id = gui.insert(root_id, Node::default()).unwrap();
         let child_2_id = gui.insert(root_id, Node::default()).unwrap();
@@ -599,7 +599,7 @@ mod test {
 
     #[test]
     fn test_remove() {
-        let mut gui = Gui::new(Node::default());
+        let mut gui = Gewy::new(Node::default());
         let root_id = gui.root_id;
         let child_1_id = gui.insert(root_id, Node::default()).unwrap();
         let child_2_id = gui.insert(root_id, Node::default()).unwrap();

@@ -4,7 +4,7 @@ pub use button::*;
 use std::fmt::Debug;
 use std::any::Any;
 use glam::Vec2;
-use crate::{NodeId, Gui, Node, Result, Painter, Style, RawCorners, GuiError, EventControl, Name, util};
+use crate::{NodeId, Gewy, Node, Result, Painter, Style, RawCorners, GuiError, EventControl, Name, util};
 
 
 /// Represents the type, state and rendering code of a [`crate::Node`].
@@ -41,12 +41,12 @@ impl Widget for Pane {
 pub struct Descendants<'n> {
     pub(crate) ancestor_id: NodeId,
     pub(crate) parent_id: NodeId,
-    pub(crate) gui: &'n mut Gui
+    pub(crate) gui: &'n mut Gewy
 }
 
 impl<'n> Descendants<'n> {
 
-    pub(crate) fn new(ancestor_id: NodeId, gui: &'n mut Gui) -> Self {
+    pub(crate) fn new(ancestor_id: NodeId, gui: &'n mut Gewy) -> Self {
         Self { ancestor_id, parent_id: ancestor_id, gui }
     }
     

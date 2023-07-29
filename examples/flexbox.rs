@@ -4,7 +4,7 @@ use gewy::winit::*;
 
 fn main() {
     let root = Node::from_widget(Root);
-    let gui = Gui::new(root);
+    let gui = Gewy::new(root);
     WinitApp::new(gui, 512, 512).start();
 }
 
