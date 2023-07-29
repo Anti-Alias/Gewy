@@ -11,8 +11,10 @@ pub(crate) struct Raw {
     pub region: Rect,
     pub margin: RawMargin,
     pub padding: RawPadding,
-    pub corners: RawCorners
-}
+    pub corners: RawCorners,
+    pub(crate) min_size: Vec2,
+    pub(crate) max_size: Vec2
+}   
 
 impl Raw {
 

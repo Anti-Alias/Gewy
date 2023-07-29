@@ -6,9 +6,11 @@ use bitflags::bitflags;
 pub type Margin = Sides;
 pub type Padding = Sides;
 
-#[derive(Clone, PartialEq, Debug, Default)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Style {
     pub size: Size,
+    pub min_size: Size,
+    pub max_size: Size,
     pub color: Color,
     pub margin: Sides,
     pub padding: Sides,
@@ -70,6 +72,22 @@ impl Style {
     }
 }
 
+impl Default for Style {
+    fn default() -> Self {
+        Self {
+            size: Default::default(),
+            min_size: Size::ZERO,
+            max_size: Default::default(),
+            color: Default::default(),
+            margin: Default::default(),
+            padding: Default::default(),
+            corners: Default::default(),
+            layout: Default::default(),
+            config: Default::default()
+        }
+    }
+}
+
 /// Size of the node.
 #[derive(Copy, Clone, PartialEq, Debug, Default)]
 pub struct Size {
@@ -78,11 +96,22 @@ pub struct Size {
 }
 
 impl Size {
+    pub const ZERO: Self = Self::new(Val::Px(0.0), Val::Px(0.0));
+    pub const AUTO: Self = Self::new(Val::Auto, Val::Auto);
     pub const fn new(width: Val, height: Val) -> Self {
         Self { width, height }
     }
     pub const fn all(value: Val) -> Self {
         Self { width: value, height: value }
+    }
+    pub fn to_raw(self, parent_size: Vec2, is_row: bool) -> Vec2 {
+        let (width, height) = if is_row {
+            (self.width, self.height)
+        }
+        else {
+            (self.height, self.width)
+        };
+        Vec2::new(width.to_raw(parent_size.x), height.to_raw(parent_size.y))
     }
 }
 

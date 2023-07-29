@@ -36,7 +36,8 @@ impl Widget for RadioButton {
     fn style<'n>(&self, style: &mut Style) {
         const SIZE: Size = Size::all(Val::Px(17.0));
         style.size = SIZE;
-        style.config.shrink = 0.0;
+        style.min_size = SIZE;
+        style.max_size = SIZE;
     }
 
     fn paint(&self, style: &Style, painter: &mut Painter, canvas: Canvas) {

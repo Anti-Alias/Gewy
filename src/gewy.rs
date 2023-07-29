@@ -328,6 +328,10 @@ impl Gewy {
             let node = self.get_mut(*id).unwrap();
             node.raw.margin = node.style.raw_margin(parent_size, is_row);
             node.raw.padding = node.style.raw_padding(parent_size, is_row);
+            let min_size = node.style.min_size.to_raw(parent_size, is_row);
+            let max_size = node.style.max_size.to_raw(parent_size, is_row);
+            node.raw.min_size = min_size;
+            node.raw.max_size = max_size.max(min_size);
             let raw_margin = node.raw.margin.size();
             let raw_padding = node.raw.padding.size();
             let raw_basis = node.style.raw_basis(parent_size.x, is_row);
@@ -450,8 +454,8 @@ impl Gewy {
             let scaled_shave = group_shave * width_ratio * shrink * shave_ratio;
 
             let mut new_content_width = content_width - scaled_shave;
-            if new_content_width < 0.0 {
-                new_content_width = 0.0;
+            if new_content_width < node.raw.min_size.x {
+                new_content_width = node.raw.min_size.x;
                 overflow_count += 1;
             }
             node.raw.set_content_width(new_content_width);

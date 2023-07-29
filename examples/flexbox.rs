@@ -48,20 +48,16 @@ fn c_red(s: &mut Style) {
     s.padding.left = Val::Px(32.0);
     s.padding.right = Val::Px(32.0);
     s.layout.direction = Direction::Column;
-    s.config.shrink = 0.0;
-    s.config.shrink = 1.0;
 }
 
 fn c_green(s: &mut Style) {
     s.color = Color::GREEN;
     s.size.width = Val::Px(128.0);  
     s.size.height = Val::Px(128.0);
-    // s.padding.left = Val::Px(32.0);
-    // s.padding.right = Val::Px(32.0);
+    s.padding.left = Val::Px(32.0);
+    s.padding.right = Val::Px(32.0);
     s.layout.justify_content = JustifyContent::Center;
     s.layout.align_items = AlignItems::Center;
-    s.config.shrink = 0.0;
-    s.config.shrink = 2.0;
 }
 
 fn c_blue(s: &mut Style) {
@@ -70,8 +66,6 @@ fn c_blue(s: &mut Style) {
     s.size.height = Val::Px(128.0);
     s.padding.left = Val::Px(32.0);
     s.padding.right = Val::Px(32.0);
-    s.config.shrink = 1.0;
-    s.config.shrink = 3.0;
 }
 
 fn c_button(s: &mut Style) {
