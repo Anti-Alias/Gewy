@@ -15,8 +15,13 @@ pub struct Style {
     pub margin: Sides,
     pub padding: Sides,
     pub corners: Corners,
-    pub layout: Layout,
-    pub config: Config
+    pub direction: Direction,
+    pub justify: Justify,
+    pub align: Align,
+    pub grow: f32,
+    pub shrink: f32,
+    pub basis: Val,
+    pub align_self: AlignSelf
 }
 
 impl Style {
@@ -37,7 +42,7 @@ impl Style {
         }
     }
     pub(crate) fn raw_basis(&self, parent_width: f32, is_row: bool) -> f32 {
-        match self.config.basis {
+        match self.basis {
             Val::Px(px) => px.max(0.0),
             Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_width,
             Val::Auto => self.raw_width(parent_width, is_row)
@@ -82,9 +87,20 @@ impl Default for Style {
             margin: Default::default(),
             padding: Default::default(),
             corners: Default::default(),
-            layout: Default::default(),
-            config: Default::default()
+            justify: Default::default(),
+            direction: Default::default(),
+            align: Default::default(),
+            grow: 0.0,
+            shrink: 1.0,
+            basis: Val::default(),
+            align_self: AlignSelf::default()
         }
+
+        // grow: 0.0,
+        // shrink: 1.0,
+        // basis: Val::default(),
+        // align_self: AlignSelf::default()
+        
     }
 }
 
@@ -233,26 +249,6 @@ impl Direction {
     }
     pub fn is_row(self) -> bool {
         self == Self::Row || self == Self::RowReverse
-    }
-}
-
-/// Configuration for items in a [`Layout`].
-#[derive(Clone, PartialEq, Debug)]
-pub struct Config {
-    pub grow: f32,
-    pub shrink: f32,
-    pub basis: Val,
-    pub align_self: AlignSelf
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            grow: 0.0,
-            shrink: 1.0,
-            basis: Val::default(),
-            align_self: AlignSelf::default()
-        }
     }
 }
 

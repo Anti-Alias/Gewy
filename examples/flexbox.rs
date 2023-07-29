@@ -14,9 +14,9 @@ impl Widget for Root {
     // Default style for widget
     fn style(&self, s: &mut Style) {
         s.color = Color::GRAY;
-        s.layout.direction = Direction::Row;
-        s.layout.justify = Justify::Start;
-        s.layout.align = Align::Center;
+        s.direction = Direction::Row;
+        s.justify = Justify::Start;
+        s.align = Align::Center;
     }
 
     // Nodes that are implicitly inserted under Root.
@@ -48,17 +48,17 @@ fn c_red(s: &mut Style) {
     s.max_size.width = Val::Px(256.0);
     s.padding.left = Val::Px(64.0);
     s.padding.right = Val::Px(64.0);
-    s.layout.direction = Direction::Column;
-    s.config.grow = 1.0;
+    s.direction = Direction::Column;
+    s.grow = 1.0;
 }
 
 fn c_green(s: &mut Style) {
     s.color = Color::GREEN;
     s.size.width = Val::Px(128.0);
     s.size.height = Val::Px(128.0);
-    s.layout.justify = Justify::Center;
-    s.layout.align = Align::Center;
-    s.config.grow = 1.0;
+    s.justify = Justify::Center;
+    s.align = Align::Center;
+    s.grow = 1.0;
 }
 
 fn c_blue(s: &mut Style) {
@@ -67,7 +67,7 @@ fn c_blue(s: &mut Style) {
     s.size.height = Val::Px(128.0);
     s.padding.left = Val::Px(32.0);
     s.padding.right = Val::Px(32.0);
-    s.config.grow = 1.0;
+    s.grow = 1.0;
 }
 
 fn c_button(s: &mut Style) {

@@ -239,14 +239,12 @@ impl Gewy {
     }
 
     pub fn resize(&mut self, size: Vec2) {
-        let layout = Layout {
-            justify: Justify::Center,
-            ..Default::default()
-        };
         self.layout_children(
             &[self.root_id],
             Rect::new(Vec2::ZERO, size),
-            layout
+            Direction::default(),
+            Justify::default(),
+            Align::default()
         );
     }
 
@@ -279,9 +277,8 @@ impl Gewy {
         if children.is_empty() { return }
 
         // Computes regions of children
-        let layout = node.style.layout;
         let region = node.raw.content_region();
-        self.layout_children(children, region, layout);
+        self.layout_children(children, region, node.style.direction, node.style.justify, node.style.align);
     }
 
     // Computes the raw regions of a group of nodes given their parent's raw region.
@@ -289,11 +286,13 @@ impl Gewy {
         &mut self,
         child_ids: &[NodeId],
         parent_region: Rect,
-        parent_layout: Layout
+        parent_direction: Direction,
+        parent_justify: Justify,
+        parent_align: Align
     ) {
         // Unpack parent metadata.
-        let is_reverse = parent_layout.direction.is_reverse();
-        let is_row = parent_layout.direction.is_row();
+        let is_reverse = parent_direction.is_reverse();
+        let is_row = parent_direction.is_row();
         let parent_size = parent_region.size.flip(!is_row);
 
         // Computes raw values for nodes, and prepares them for further layout code. Accumulates sums.
@@ -313,8 +312,8 @@ impl Gewy {
         };
 
         // Justifies and aligns children
-        self.justify_group(child_ids, group_final_width, parent_size.x, parent_layout.justify, is_reverse);
-        self.align_group(child_ids, parent_size.y, parent_size.y, parent_layout.align);
+        self.justify_group(child_ids, group_final_width, parent_size.x, parent_justify, is_reverse);
+        self.align_group(child_ids, parent_size.y, parent_size.y, parent_align);
 
         // Transforms children to the global coordinate space.
         for child_id in child_ids {
@@ -358,8 +357,8 @@ impl Gewy {
             // Accumulates sums
             group_basis_width += basis_size;
             group_full_basis_width += node.raw.full_width();
-            grow_total += node.style.config.grow;
-            shrink_total += node.style.config.shrink;
+            grow_total += node.style.grow;
+            shrink_total += node.style.shrink;
         };
         grow_total = grow_total.max(1.0);
 
@@ -387,7 +386,7 @@ impl Gewy {
         // Computes the "capped" and "uncapped" group values.
         for id in SliceIter::new(group, is_reverse) {
             let node = self.get_mut(*id).unwrap();
-            let grow = node.style.config.grow;
+            let grow = node.style.grow;
             let grow_ratio = grow.max(0.0) / grow_total;
             let max_width = node.raw.max_size.x;
             let grown_width = node.raw.width() + grow_width * grow_ratio;
@@ -435,7 +434,7 @@ impl Gewy {
         for id in SliceIter::new(group, is_reverse) {
             let node = self.get(*id).unwrap();
             let width = node.raw.width();
-            let shrink = node.style.config.shrink;
+            let shrink = node.style.shrink;
             let shrink_ratio = shrink / shrink_total;
             let width_ratio = width / group_width;
             let scaled_shave = group_shave * width_ratio * shrink_ratio;
@@ -455,7 +454,7 @@ impl Gewy {
         for id in SliceIter::new(group, is_reverse) {
             let node = self.get_mut(*id).unwrap();
             let width = node.raw.width();
-            let shrink = node.style.config.shrink;
+            let shrink = node.style.shrink;
             let shrink_ratio = shrink / shrink_total.max(1.0);
             let width_ratio = width / group_width;
             let scaled_shave = group_shave * width_ratio * shrink_ratio * shave_ratio;
@@ -545,7 +544,7 @@ impl Gewy {
     ) {
         for id in group {
             let node = self.get_mut(*id).unwrap();
-            let node_align_self = node.style.config.align_self;
+            let node_align_self = node.style.align_self;
             let node_align = node_align_self.to_align_items(parent_align_items);
             let node_height = node.style.size.height;
             match node_align {
