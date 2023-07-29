@@ -66,7 +66,7 @@ impl<'n> Descendants<'n> {
         }
     }
 
-    /// Inserts a node and becomes the ancestor of its children.
+    /// Inserts a node which becomes the ancestor of its children.
     pub fn insert_ancestor(&mut self, mut node: Node) -> Descendants {
         node.ancestor_id = Some(self.ancestor_id);
         let parent_id = self.gewy.insert(self.parent_id, node).unwrap();
