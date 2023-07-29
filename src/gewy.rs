@@ -340,8 +340,8 @@ impl Gewy {
             
             // Calculates raw sizes
             let node = self.get_mut(*id).unwrap();
-            let min_size = node.style.min_size.to_raw(parent_size, is_row);
-            let max_size = node.style.max_size.to_raw(parent_size, is_row);
+            let min_size = node.style.raw_min_size(parent_size, is_row);
+            let max_size = node.style.raw_max_size(parent_size, is_row);
             let padding_region_size = node.raw.padding_region_size();
             node.raw.margin = node.style.raw_margin(parent_size, is_row);
             node.raw.padding = node.style.raw_padding(parent_size, is_row);
@@ -546,7 +546,7 @@ impl Gewy {
             let node = self.get_mut(*id).unwrap();
             let node_align_self = node.style.align_self;
             let node_align = node_align_self.to_align_items(parent_align_items);
-            let node_height = node.style.size.height;
+            let node_height = node.style.height;
             match node_align {
                 Align::Center => {
                     let node_size = node.raw.region.size;

@@ -8,9 +8,12 @@ pub type Padding = Sides;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Style {
-    pub size: Size,
-    pub min_size: Size,
-    pub max_size: Size,
+    pub width: Val,
+    pub height: Val,
+    pub min_width: Val,
+    pub min_height: Val,
+    pub max_width: Val,
+    pub max_height: Val,
     pub color: Color,
     pub margin: Sides,
     pub padding: Sides,
@@ -26,7 +29,7 @@ pub struct Style {
 
 impl Style {
     pub(crate) fn raw_width(&self, parent_width: f32, is_row: bool) -> f32 {
-        let width = if is_row { self.size.width } else { self.size.height };
+        let width = if is_row { self.width } else { self.height };
         match width {
             Val::Px(px) => px.max(0.0),
             Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_width,
@@ -34,7 +37,7 @@ impl Style {
         }
     }
     pub(crate) fn raw_height(&self, parent_height: f32, is_row: bool) -> f32 {
-        let height = if is_row { self.size.height } else { self.size.width };
+        let height = if is_row { self.height } else { self.width };
         match height {
             Val::Px(px) => px.max(0.0),
             Val::Pc(pc) => pc.clamp(0.0, 1.0) * parent_height,
@@ -67,6 +70,26 @@ impl Style {
         Self::raw_sides(&self.padding, parent_size, is_row)
     }
 
+    pub(crate) fn raw_min_size(&self, parent_size: Vec2, is_row: bool) -> Vec2 {
+        let (width, height) = if is_row {
+            (self.min_width, self.min_height)
+        }
+        else {
+            (self.min_height, self.min_width)
+        };
+        Vec2::new(width.to_raw(parent_size.x), height.to_raw(parent_size.y))
+    }
+
+    pub(crate) fn raw_max_size(&self, parent_size: Vec2, is_row: bool) -> Vec2 {
+        let (width, height) = if is_row {
+            (self.max_width, self.max_height)
+        }
+        else {
+            (self.max_height, self.max_width)
+        };
+        Vec2::new(width.to_raw(parent_size.x), height.to_raw(parent_size.y))
+    }
+
     fn raw_sides(sides: &Sides, parent_size: Vec2, is_row: bool) -> RawSides {
         RawSides {
             top: sides.top.to_raw(parent_size.y).max(0.0),
@@ -80,9 +103,12 @@ impl Style {
 impl Default for Style {
     fn default() -> Self {
         Self {
-            size: Default::default(),
-            min_size: Size::ZERO,
-            max_size: Default::default(),
+            width: Val::default(),
+            height: Val::default(),
+            min_width: Val::Px(0.0),
+            min_height: Val::Px(0.0),
+            max_width: Val::default(),
+            max_height: Val::default(),
             color: Default::default(),
             margin: Default::default(),
             padding: Default::default(),
@@ -94,40 +120,7 @@ impl Default for Style {
             shrink: 1.0,
             basis: Val::default(),
             align_self: AlignSelf::default()
-        }
-
-        // grow: 0.0,
-        // shrink: 1.0,
-        // basis: Val::default(),
-        // align_self: AlignSelf::default()
-        
-    }
-}
-
-/// Size of the node.
-#[derive(Copy, Clone, PartialEq, Debug, Default)]
-pub struct Size {
-    pub width: Val,
-    pub height: Val    
-}
-
-impl Size {
-    pub const ZERO: Self = Self::new(Val::Px(0.0), Val::Px(0.0));
-    pub const AUTO: Self = Self::new(Val::Auto, Val::Auto);
-    pub const fn new(width: Val, height: Val) -> Self {
-        Self { width, height }
-    }
-    pub const fn all(value: Val) -> Self {
-        Self { width: value, height: value }
-    }
-    pub fn to_raw(self, parent_size: Vec2, is_row: bool) -> Vec2 {
-        let (width, height) = if is_row {
-            (self.width, self.height)
-        }
-        else {
-            (self.height, self.width)
-        };
-        Vec2::new(width.to_raw(parent_size.x), height.to_raw(parent_size.y))
+        }      
     }
 }
 

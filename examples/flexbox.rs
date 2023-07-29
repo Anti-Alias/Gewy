@@ -43,9 +43,9 @@ fn c_round(s: &mut Style) {
 
 fn c_red(s: &mut Style) {
     s.color = Color::RED;
-    s.size.width = Val::Px(128.0);  
-    s.size.height = Val::Px(128.0);
-    s.max_size.width = Val::Px(256.0);
+    s.width = Val::Px(128.0);  
+    s.height = Val::Px(128.0);
+    s.max_width = Val::Px(256.0);
     s.padding.left = Val::Px(64.0);
     s.padding.right = Val::Px(64.0);
     s.direction = Direction::Column;
@@ -54,8 +54,8 @@ fn c_red(s: &mut Style) {
 
 fn c_green(s: &mut Style) {
     s.color = Color::GREEN;
-    s.size.width = Val::Px(128.0);
-    s.size.height = Val::Px(128.0);
+    s.width = Val::Px(128.0);
+    s.height = Val::Px(128.0);
     s.justify = Justify::Center;
     s.align = Align::Center;
     s.grow = 1.0;
@@ -63,15 +63,13 @@ fn c_green(s: &mut Style) {
 
 fn c_blue(s: &mut Style) {
     s.color = Color::BLUE;
-    s.size.width = Val::Px(128.0);  
-    s.size.height = Val::Px(128.0);
+    s.width = Val::Px(128.0);  
+    s.height = Val::Px(128.0);
     s.padding.left = Val::Px(32.0);
     s.padding.right = Val::Px(32.0);
     s.grow = 1.0;
 }
 
 fn c_button(s: &mut Style) {
-    s.size = Size::all(Val::Px(17.0));
-    s.min_size = Size::all(Val::Px(17.0));
-    s.max_size = Size::all(Val::Px(17.0));
+    s.margin = Margin::all(Val::Px(2.0));
 }
