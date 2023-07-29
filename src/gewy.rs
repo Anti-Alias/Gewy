@@ -238,7 +238,7 @@ impl Gewy {
 
     pub fn resize(&mut self, size: Vec2) {
         let layout = Layout {
-            justify_content: JustifyContent::Center,
+            justify: JustifyContent::Center,
             ..Default::default()
         };
         self.layout_children(
@@ -295,13 +295,23 @@ impl Gewy {
         let parent_size = parent_region.size.flip(!is_row);
 
         // Lays out children local to their parent's coordinate space.
-        let (group_width, group_content_width, grow_total, shrink_total) = self.pack_group(child_ids, parent_size, is_row, is_reverse);
-        if group_width <= parent_size.x + EPS {
-            self.grow_group(child_ids, group_width, grow_total, parent_size.x, parent_layout.justify_content, is_reverse);
+        let (group_basis_width, group_content_width, grow_total, shrink_total) = self.pack_group(
+            child_ids,
+            parent_size,
+            is_row,
+            is_reverse
+        );  
+        
+        // Either grows or shrinks
+        let group_final_width = if group_basis_width <= parent_size.x + EPS {
+            self.grow_group(child_ids, group_basis_width, grow_total, parent_size.x, is_reverse)
         }
         else {
-            self.shrink_group(child_ids, group_width, group_content_width, shrink_total, parent_size.x, is_reverse);
-        }
+            self.shrink_group(child_ids, group_basis_width, group_content_width, shrink_total, parent_size.x, is_reverse)
+        };
+
+        // Applies justify, align and decorates various properties.
+        self.justify_group(child_ids, group_final_width, parent_size.x, parent_layout.justify, is_reverse);
         self.align_group(child_ids, parent_size.y, parent_size.y, parent_layout.align_items);
         self.decorate_group(child_ids);
 
@@ -319,37 +329,45 @@ impl Gewy {
     // Packs elements from left to right, starting at the top-left, local to the parent's coordinate space: (0, 0) to (parent_size.x, parent_size.y).
     // This simplifies the layout code later.
     fn pack_group(&mut self, group: &[NodeId], parent_size: Vec2, is_row: bool, is_reverse: bool) -> (f32, f32, f32, f32) {
-        let mut group_width = 0.0;
+        let mut group_basis_width = 0.0;
         let mut group_content_width = 0.0;
         let mut grow_total = 0.0;
         let mut shrink_total = 0.0;
         let group_ids = RevIter::new(group, is_reverse);
         for id in group_ids {
+            
+            // Calculates raw sizes
             let node = self.get_mut(*id).unwrap();
-            node.raw.margin = node.style.raw_margin(parent_size, is_row);
-            node.raw.padding = node.style.raw_padding(parent_size, is_row);
+            let padding_size = node.raw.padding_region().size;
             let min_size = node.style.min_size.to_raw(parent_size, is_row);
             let max_size = node.style.max_size.to_raw(parent_size, is_row);
+            node.raw.margin = node.style.raw_margin(parent_size, is_row);
+            node.raw.padding = node.style.raw_padding(parent_size, is_row);
+            node.raw.corners = node.style.raw_corners(padding_size);
             node.raw.min_size = min_size;
             node.raw.max_size = max_size.max(min_size);
+
+            // Computes raw packed region
             let raw_margin = node.raw.margin.size();
             let raw_padding = node.raw.padding.size();
             let raw_basis = node.style.raw_basis(parent_size.x, is_row);
-            let outer_width = raw_basis + raw_padding.x + raw_margin.x;
-            let outer_height = node.style.raw_height(parent_size.y, is_row) + raw_margin.y + raw_padding.y;
+            let width = raw_basis + raw_padding.x + raw_margin.x;
+            let height = node.style.raw_height(parent_size.y, is_row) + raw_margin.y + raw_padding.y;
             node.raw.region = Rect::new(
-                Vec2::new(group_width, 0.0),
-                Vec2::new(outer_width, outer_height)
+                Vec2::new(group_basis_width, 0.0),
+                Vec2::new(width, height)
             ).non_negative();
+
+            // Accumulates sums
             group_content_width += raw_basis;
-            group_width += outer_width;
+            group_basis_width += width;
             grow_total += node.style.config.grow;
             shrink_total += node.style.config.shrink;
         };
         grow_total = grow_total.max(1.0);
 
         // Returns sums
-        (group_width, group_content_width, grow_total, shrink_total)
+        (group_basis_width, group_content_width, grow_total, shrink_total)
     }
 
     // Grows "packed" children on the primary axis.
@@ -359,22 +377,32 @@ impl Gewy {
         group_width: f32,
         grow_total: f32,
         parent_width: f32,
-        justify_content: JustifyContent,
         is_reverse: bool
-    ) {
+    ) -> f32 {
 
         // Calculates the width of each node.
         let grow_width = parent_width - group_width;
-        let mut group_width = 0.0;
+        let mut new_group_width = 0.0;
         let group_ids = RevIter::new(group, is_reverse);
         for id in group_ids {
             let node = self.get_mut(*id).unwrap();
             let grow_perc = node.style.config.grow.max(0.0) / grow_total;
-            let new_width = node.raw.region.size.x + grow_perc * grow_width;
-            node.raw.region.size.x = new_width;
-            group_width += new_width;
+            let new_content_width = node.raw.content_width() + grow_perc * grow_width;
+            let new_content_width = new_content_width.min(node.raw.max_size.x);
+            node.raw.set_content_width(new_content_width);
+            new_group_width += node.raw.region.size.x;
         };
+        new_group_width
+    }
 
+    fn justify_group(
+        &mut self,
+        group: &[NodeId],
+        group_width: f32,
+        parent_width: f32,
+        justify_content: JustifyContent,
+        is_reverse: bool
+    ) {
         // Determines offset and spacing of nodes based on the layout.
         let (offset, spacing) = match justify_content {
             JustifyContent::Start => (0.0, 0.0),
@@ -419,9 +447,9 @@ impl Gewy {
         shrink_total: f32,
         parent_width: f32,
         is_reverse: bool
-    ) {
+    ) -> f32 {
         if group_content_width < EPS || shrink_total < EPS {
-            return;
+            return group_width;
         }
         let group_shave = group_width - parent_width;
       
@@ -437,7 +465,7 @@ impl Gewy {
             scaled_group_shave += scaled_shave;
         };
         if scaled_group_shave < EPS {
-            return;
+            return group_width;
         }
 
         // Shaves off as much from the each node as possible and positions them side-by-side.
@@ -452,7 +480,6 @@ impl Gewy {
             let shrink = shrink / shrink_total.max(1.0);
             let width_ratio = content_width / group_content_width;
             let scaled_shave = group_shave * width_ratio * shrink * shave_ratio;
-
             let mut new_content_width = content_width - scaled_shave;
             if new_content_width < node.raw.min_size.x {
                 new_content_width = node.raw.min_size.x;
@@ -464,10 +491,13 @@ impl Gewy {
             new_group_content_width += new_content_width;
         };
 
-        // If still too big and at least one node was shaved in the last pass, redo the algo.
+        // If still too big and there is at least some left to shave off, repeat.
         let shaved_group_width = x;
         if overflow_count != 0 && overflow_count != group.len() {
-            self.shrink_group(group, shaved_group_width, new_group_content_width, shrink_total, parent_width, is_reverse);
+            self.shrink_group(group, shaved_group_width, new_group_content_width, shrink_total, parent_width, is_reverse)
+        }
+        else {
+            shaved_group_width
         }
     }
 

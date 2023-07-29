@@ -212,7 +212,7 @@ impl Corners {
 #[derive(Copy, Clone, PartialEq, Debug, Default)]
 pub struct Layout {
     pub direction: Direction,
-    pub justify_content: JustifyContent,
+    pub justify: JustifyContent,
     pub align_items: AlignItems
 }
 
