@@ -46,7 +46,7 @@ pub struct Descendants<'n> {
 
 impl<'n> Descendants<'n> {
 
-    pub(crate) fn new(ancestor_id: NodeId, gewy: &'n mut Gewy) -> Self {
+    pub fn new(ancestor_id: NodeId, gewy: &'n mut Gewy) -> Self {
         Self { ancestor_id, parent_id: ancestor_id, gewy }
     }
     

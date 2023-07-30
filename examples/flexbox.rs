@@ -24,7 +24,7 @@ impl Widget for Root {
         rect((c_red, c_round), d);
         pane((c_green, c_round), d, |d| {
             radio_button(c_button, d);
-            radio_button(c_button, d);
+            radio_button(c_button, d);  
             radio_button(c_button, d);
         });
         rect((c_blue, c_round), d);
@@ -44,9 +44,8 @@ fn c_round(s: &mut Style) {
 fn c_red(s: &mut Style) {
     s.color = Color::RED;
     s.width = Val::Px(128.0);  
-    s.align_self = AlignSelf::Stretch;
     s.max_width = Val::Px(256.0);
-    s.max_height = Val::Px(256.0);
+    s.height = Val::Pc(0.5);
     s.padding.left = Val::Px(64.0);
     s.padding.right = Val::Px(64.0);
     s.direction = Direction::Column;

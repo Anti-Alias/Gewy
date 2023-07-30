@@ -52,9 +52,19 @@ impl Raw {
         self.region.size.x - (self.margin.left + self.margin.right + self.padding.left + self.padding.right)
     }
 
+    // Height of the content region.
+    pub fn height(&self) -> f32 {
+        self.region.size.y - (self.margin.bottom + self.margin.top + self.padding.bottom + self.padding.top)
+    }
+
     // Sets the width of the region.
     pub fn set_width(&mut self, width: f32) {
         self.region.size.x = width + (self.margin.left + self.margin.right + self.padding.left + self.padding.right);
+    }
+
+    // Sets the height of the region.
+    pub fn set_height(&mut self, height: f32) {
+        self.region.size.y = height + (self.margin.bottom + self.margin.top + self.padding.bottom + self.padding.top);
     }
 
     pub fn set_size(&mut self, size: Vec2) {

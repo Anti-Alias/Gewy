@@ -313,7 +313,7 @@ impl Gewy {
 
         // Justifies and aligns children
         self.justify_group(child_ids, group_final_width, parent_size.x, parent_justify, is_reverse);
-        self.align_group(child_ids, parent_size.y, parent_size.y, parent_align);
+        self.align_group(child_ids, parent_size.y, parent_align);
 
         // Transforms children to the global coordinate space.
         for child_id in child_ids {
@@ -538,7 +538,6 @@ impl Gewy {
     fn align_group(
         &mut self,
         group: &[NodeId],
-        group_height: f32,
         parent_height: f32,
         parent_align_items: Align
     ) {
@@ -554,7 +553,16 @@ impl Gewy {
                     node.raw.region.position.y = parent_height / 2.0 - node_height / 2.0;
                 },
                 Align::Stretch if node_height == Val::Auto => {
-                    node.raw.region.size.y = group_height
+                    node.raw.region.size.y = parent_height;
+                    let height = node.raw.height();
+                    let min_size = node.raw.min_size;
+                    let max_size = node.raw.max_size;
+                    if height < min_size.y {
+                        node.raw.set_height(min_size.y);
+                    }
+                    else if height > max_size.y {
+                        node.raw.set_height(max_size.y);
+                    }
                 },
                 Align::End =>  {
                     let node_height = node.raw.region.size.y;
