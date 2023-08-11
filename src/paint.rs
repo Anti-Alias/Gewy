@@ -1,5 +1,5 @@
 use crate::Color;
-use glam::Vec2;
+use crate::Vec2;
 use std::fmt::Debug;
 
 

@@ -1,4 +1,4 @@
-use glam::Vec2;
+use crate::Vec2;
 use wgpu::*;
 use winit::window::{WindowBuilder, CursorIcon};
 use winit::event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode, MouseButton};
