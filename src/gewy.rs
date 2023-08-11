@@ -21,7 +21,8 @@ pub struct Gewy {
     pub(crate) next_cursor_icon: Option<CursorIcon>,
     pub translation: Vec2,
     pub scale: f32,
-    pub round: bool
+    pub round: bool,
+    painter: Painter
 }
 
 impl Gewy {
@@ -38,7 +39,8 @@ impl Gewy {
             next_cursor_icon: None,
             translation: Vec2::ZERO,
             scale: 1.0,
-            round: true
+            round: true,
+            painter: Painter::new()
         };
         unsafe { slf.spawn_descendants(root_id) };
         slf
@@ -239,6 +241,7 @@ impl Gewy {
     }
 
     pub fn resize(&mut self, size: Vec2) {
+        self.painter.resize(size, self.translation, self.scale);
         self.layout_children(
             &[self.root_id],
             Rect::new(Vec2::ZERO, size),
@@ -255,8 +258,9 @@ impl Gewy {
     }
 
     /// Paints the ui using the supplied painter.
-    pub fn paint(&mut self, painter: &mut Painter) {
-        self.paint_node(self.root_id, painter);
+    pub fn paint(&mut self) -> Vec<DrawCommand> {
+        self.paint_node(self.root_id);
+        std::mem::take(&mut self.painter.commands)
     }
 
     // Spawns descendants of the node specified using its widget.
@@ -583,10 +587,10 @@ impl Gewy {
         Ok(())
     }
 
-    fn paint_node(&mut self, node_id: NodeId, painter: &mut Painter) {
+    fn paint_node(&mut self, node_id: NodeId) {
         
         // Unpacks node
-        let node = self.get(node_id).unwrap();
+        let node = self.storage.get(node_id).unwrap();
         let widget = &node.widget;
         let style = &node.style;
 
@@ -606,16 +610,16 @@ impl Gewy {
                 size: paint_size,
                 corners
             };
-            let state = painter.push_state();
-            painter.translation = paint_region.position;
-            widget.paint(style, painter, canvas);
-            painter.pop_state(state);
+            let state = self.painter.push();
+            self.painter.set_translation(paint_region.position);
+            widget.paint(style, &mut self.painter, canvas);
+            self.painter.pop(state);
         }
 
         // Renders children of node
         let children: &[NodeId] = unsafe { std::mem::transmute(node.children()) };
         for child_id in children {
-            self.paint_node(*child_id, painter);
+            self.paint_node(*child_id);
         }
     }
 }

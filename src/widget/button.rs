@@ -48,15 +48,15 @@ impl Widget for RadioButton {
         let outer_radius = center.min_element();
         let inner_radius = outer_radius * 0.75;
         let dot_radius = inner_radius * 0.75;
-
         let light_color = style.color * LIGHT;
         let selected_color = style.color * if self.selected { SELECTED } else { DARK };
-
-        painter.color = selected_color;
-        painter.circle(center, outer_radius);
-        painter.color = light_color;
-        painter.circle(center, inner_radius);
-        painter.color = selected_color;
-        painter.circle(center, dot_radius);
+        painter
+            .move_to(center)
+            .set_color(selected_color)
+            .paint_circle(outer_radius)
+            .set_color(light_color)
+            .paint_circle(inner_radius)
+            .set_color(selected_color)
+            .paint_circle(dot_radius);
     }
 }

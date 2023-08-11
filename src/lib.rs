@@ -7,13 +7,15 @@ mod color;
 mod paint;
 mod err;
 mod math;
-mod view;
 mod raw;
 mod extensions;
 mod input;
-mod integration;
 pub mod util;
 pub mod dsl;
+
+// Backends/integrations
+pub mod winit;
+pub mod wgpu;
 
 pub use node::*;
 pub use gewy::*;
@@ -22,9 +24,7 @@ pub use widget::*;
 pub use event::*;
 pub use color::*;
 pub use paint::*;
-pub use integration::*;
 pub use math::*;
 pub use err::*;
-pub use view::*;
 pub use raw::*;
 pub use input::*;

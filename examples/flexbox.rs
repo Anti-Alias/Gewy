@@ -1,11 +1,14 @@
 use gewy::*;
 use gewy::dsl::*;
 use gewy::winit::*;
+use pollster::FutureExt;
 
 fn main() {
     let root = Node::from_widget(Root);
     let gewy = Gewy::new(root);
-    WinitApp::new(gewy, 512, 512).start();
+    WinitApp::new(gewy, 512, 512, BackendKind::Wgpu)
+        .start()
+        .block_on();
 }
 
 pub struct Root;
@@ -15,7 +18,7 @@ impl Widget for Root {
     fn style(&self, s: &mut Style) {
         s.color = Color::GRAY;
         s.direction = Direction::Row;
-        s.justify = Justify::Start;
+        s.justify = Justify::Center;
         s.align = Align::Center;
     }
 
@@ -24,7 +27,7 @@ impl Widget for Root {
         rect((c_red, c_round), d);
         pane((c_green, c_round), d, |d| {
             radio_button(c_button, d);
-            radio_button(c_button, d);  
+            radio_button(c_button, d);
             radio_button(c_button, d);
         });
         rect((c_blue, c_round), d);
