@@ -1,6 +1,5 @@
 use glam::{Vec2, Vec2Swizzles};
 
-/// Simple rectangle struct.
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
 pub struct Rect {
     /// Top-left corner of the rectangle.

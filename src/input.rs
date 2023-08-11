@@ -55,7 +55,7 @@ pub enum CursorIcon {
 }
 
 /**
- * API for mapping the external window manager to the internal gewy and vice versa.
+ * API for mapping the external window manager to a [`Gewy`] and vice versa.
  */
 pub struct InputMapping<'a> {
     pub(crate) gewy: &'a mut Gewy

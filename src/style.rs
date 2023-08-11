@@ -1,7 +1,6 @@
 use glam::Vec2;
 
 use crate::{Color, RawCorners, RawSides, RawMargin, RawPadding};
-use bitflags::bitflags;
 
 pub type Margin = Sides;
 pub type Padding = Sides;
@@ -217,7 +216,8 @@ impl Corners {
     }
 }
 
-/// Flexbox layout for a container.
+/// The layout of a node.
+/// Determines how children are "laid out".
 #[derive(Copy, Clone, PartialEq, Debug, Default)]
 pub struct Layout {
     pub direction: Direction,
@@ -284,39 +284,5 @@ impl AlignSelf {
             AlignSelf::Start => Align::Start,
             AlignSelf::End => Align::End
         }
-    }
-}
-
-/// Either an X or Y axis.
-pub trait Axis {
-    fn get_x<T>(x_val: T, y_val: T) -> T;
-    fn get_y<T>(x_val: T, y_val: T) -> T;
-    fn set_x<T>(x_val: &mut T, y_val: &mut T, val: T);
-    fn set_y<T>(x_val: &mut T, y_val: &mut T, val: T);
-}
-
-pub struct XAxis;
-impl Axis for XAxis {
-    fn get_x<T>(x_val: T, _y_val: T) -> T { x_val }
-    fn get_y<T>(_x_val: T, y_val: T) -> T { y_val }
-    fn set_x<T>(x_val: &mut T, _y_val: &mut T, val: T) { *x_val = val }
-    fn set_y<T>(_x_val: &mut T, y_val: &mut T, val: T) { *y_val = val }
-}
-
-pub struct YAxis;
-impl Axis for YAxis {
-    fn get_x<T>(_x_val: T, y_val: T) -> T { y_val }
-    fn get_y<T>(x_val: T, _y_val: T) -> T { x_val }
-    fn set_x<T>(_x_val: &mut T, y_val: &mut T, val: T) { *y_val = val }
-    fn set_y<T>(x_val: &mut T, _y_val: &mut T, val: T) { *x_val = val }
-}
-
-bitflags! {
-    pub struct Changes: u8 {
-        const NONE =                    0b00000000;
-        const ALL =                     0b11111111;
-        const REPAINT =                 0b00000001;
-        const RECALCULATE_CHILDREN =    0b00000010;
-        const RECALCULATE =             0b00000100;
     }
 }

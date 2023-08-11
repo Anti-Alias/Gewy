@@ -5,7 +5,7 @@ use glam::Vec2;
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::f32::consts::TAU;
 
-/// WGPU-backend for [`Painter`]
+/// WGPU-backend for [`crate::Painter`]
 pub struct WGPUPainter {
     pub color: Color,
     pub translation: Vec2,

@@ -113,14 +113,6 @@ impl<'e> EventControl<'e> {
     }
 }
 
-/// Allows the user to write outgoing events.
-pub struct OutgoingEvents(pub(crate) Vec<DynEvent>);
-impl OutgoingEvents {
-    pub fn push(&mut self, event: impl Into<DynEvent>) {
-        self.0.push(event.into())
-    }
-}
-
 
 // Built-in events
 #[derive(Copy, Clone, Eq, PartialEq, Default, Debug)]

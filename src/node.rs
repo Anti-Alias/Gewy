@@ -9,6 +9,8 @@ new_key_type! {
     pub struct NodeId;
 }
 
+/// Element in a [`crate::Gewy`] tree.
+/// Stores a [`Widget`] and a [`Style`], and may or may not have child [`Node`]s.
 pub struct Node {
     pub(crate) widget: Box<dyn Widget>,
     pub(crate) name: Option<Name>,

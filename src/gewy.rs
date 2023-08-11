@@ -10,7 +10,7 @@ use crate::util::SliceIter;
 const EPS: f32 = 0.001;
 type NodeIdVec = TinyVec<[NodeId; 32]>;
 
-/// Represents a graphical user interface, and a torage of [`Node`]s.
+/// Represents a graphical user interface, and a storage of [`Node`]s.
 #[derive(Default)]
 pub struct Gewy {
     storage: SlotMap<NodeId, Node>,
@@ -624,7 +624,7 @@ impl Gewy {
     }
 }
 
-pub struct NodeIteratorMut<'a> {
+struct NodeIteratorMut<'a> {
     gewy: &'a mut Gewy,
     node_ids: &'a [NodeId],
     index: usize
