@@ -1,7 +1,7 @@
 use wgpu::*;
 use crate::{Color, DrawCommand};
 use crate::wgpu::{Mesh, GpuMesh, View, GpuView, Vertex};
-use glam::Vec2;
+use crate::Vec2;
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::f32::consts::TAU;
 

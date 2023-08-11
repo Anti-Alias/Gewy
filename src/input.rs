@@ -1,5 +1,5 @@
 use crate::{Gewy, Result, GewyEnterEvent, GewyExitEvent, PressEvent, ReleaseEvent, EnterEvent, ExitEvent, NodeId};
-use glam::Vec2;
+use crate::Vec2;
 
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
 pub(crate) struct Cursor {

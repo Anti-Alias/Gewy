@@ -10,6 +10,8 @@ mod math;
 mod raw;
 mod extensions;
 mod input;
+
+// Extended APIs
 pub mod util;
 pub mod dsl;
 
@@ -17,6 +19,7 @@ pub mod dsl;
 pub mod winit;
 pub mod wgpu;
 
+// Re-exports internals
 pub use node::*;
 pub use gewy::*;
 pub use style::*;
@@ -28,3 +31,6 @@ pub use math::*;
 pub use err::*;
 pub use raw::*;
 pub use input::*;
+
+// Re-exports external dependencies
+pub use glam::*;

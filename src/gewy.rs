@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use glam::Vec2;
+use crate::Vec2;
 use slotmap::SlotMap;
 use tinyvec::TinyVec;
 use crate::*;

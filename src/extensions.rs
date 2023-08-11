@@ -1,4 +1,4 @@
-use glam::{Vec2, Vec2Swizzles};
+use crate::{Vec2, Vec2Swizzles};
 
 pub trait VecExtensions {
     fn flip(self, flip: bool) -> Vec2;

@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
 use bytemuck::{Pod, Zeroable};
-use glam::Vec2;
+use crate::Vec2;
 use wgpu::*;
 use wgpu::util::{DeviceExt, BufferInitDescriptor};
 use crate::DrawCommand;

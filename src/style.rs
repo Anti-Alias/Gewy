@@ -1,4 +1,4 @@
-use glam::Vec2;
+use crate::Vec2;
 
 use crate::{Color, RawCorners, RawSides, RawMargin, RawPadding};
 

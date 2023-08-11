@@ -1,4 +1,4 @@
-use glam::{Vec2, Vec2Swizzles};
+use crate::{Vec2, Vec2Swizzles};
 
 #[derive(Copy, Clone, PartialEq, Default, Debug)]
 pub struct Rect {

@@ -3,7 +3,7 @@ pub use button::*;
 
 use std::fmt::Debug;
 use std::any::Any;
-use glam::Vec2;
+use crate::Vec2;
 use crate::{NodeId, Gewy, Node, Result, Painter, Style, RawCorners, GewyError, EventControl, Name, util};
 
 
